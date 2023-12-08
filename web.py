@@ -37,6 +37,10 @@ def init():
 agent = get_agent()
 init()
 
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
 if message := st.chat_input("你好，你是谁？"):
     with st.chat_message("user"):
         st.markdown(message)

@@ -17,5 +17,9 @@ class AbstractAgent:
         self.name = name
 
     @abstractmethod
-    def chat(message: str, stream=True) -> Union[Generator, str]:
+    def chat(self, message: str, stream=True, do_remember=True) -> Union[Generator, str]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def remember(self, role: str, message: str):
         raise NotImplementedError
