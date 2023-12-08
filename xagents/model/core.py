@@ -8,6 +8,7 @@
 
 
 from abc import abstractmethod
+from langchain_core.embeddings import Embeddings as EMBD
 
 
 class LLM:

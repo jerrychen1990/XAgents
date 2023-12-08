@@ -13,8 +13,11 @@ from pydantic import BaseModel, Field
 from xagents.config import *
 import shutil
 from snippets import jdump_lines
+from xagents.kb.vector_store import VectorStore, get_vecstore_cls
 from xagents.kb.loader import get_loader_cls
 from xagents.kb.splitter import BaseSplitter
+from xagents.model import EMBD, get_embd_model
+from langchain_core.documents import Document
 
 
 class ChunkType(str, enum.Enum):
@@ -27,7 +30,7 @@ class ChunkType(str, enum.Enum):
 
 class Chunk(BaseModel):
     content: str = Field(description="chunk的内容")
-    search_content: str = Field(description="用来检索的内容", default=None)
+    search_content: Optional[str] = Field(description="用来检索的内容", default=None)
     chunk_type: ChunkType = Field(description="chunk类型", default=ChunkType.TEXT)
     idx: int = Field(description="chunk在文档中的顺序,从0开始")
     page_idx: Optional[int] = Field(description="chunk在文档中的页码,从1开始")
@@ -37,11 +40,34 @@ class Chunk(BaseModel):
     def to_lite_dict(self):
         return self.model_dump(mode="json", exclude={"idx", "kb_name", "file_name"}, exclude_defaults=True)
 
+    def to_document(self) -> Document:
+        if self.search_content:
+            page_content, metadata = self.search_content, dict(content=self.content)
+        else:
+            page_content, metadata = self.content, dict()
+
+        metadata.update(chunk_type=self.chunk_type.value, idx=self.idx, page_idx=self.page_idx,
+                        kb_name=self.kb_name, file_name=self.file_name)
+        return Document(page_content=page_content, metadata=metadata)
+
+    @classmethod
+    def from_document(cls, document: Document):
+        content = document.metadata.pop("content", None)
+        item = dict(content=content, search_content=document.page_content) if content else dict(content=document.page_content)
+        item.update(document.metadata)
+        return cls(**item)
+
 
 class RecalledChunk(Chunk):
     score: float = Field(description="召回chunk的分数")
     forwards: List[Chunk] = Field(description="chunk的下文扩展", default=[])
     backwards: List[Chunk] = Field(description="chunk的上文扩展", default=[])
+
+    @classmethod
+    def from_document(cls, document: Document, score: float):
+        chunk = cls.__bases__[0].from_document(document)
+        recalled_chunk = cls(**chunk.__dict__, score=score)
+        return recalled_chunk
 
 
 def get_kb_dir(kb_name) -> str:
@@ -49,7 +75,7 @@ def get_kb_dir(kb_name) -> str:
 
 
 class KnwoledgeBaseFile:
-    def __init__(self, kb_name: str, origin_file_path: str, **kwargs):
+    def __init__(self, kb_name: str, origin_file_path: str):
         self.kb_name = kb_name
         self.file_name = os.path.basename(origin_file_path)
         self.stem, self.suffix = os.path.splitext(self.file_name)
@@ -95,11 +121,42 @@ class KnwoledgeBaseFile:
         self._save_chunks()
         return self.chunks
 
+    # 保存到向量数据库
+    def save2vector_store(self):
+        if not self.chunks:
+            raise ValueError("chunks is empty")
+        documents: List[Document] = [chunk.to_document() for chunk in self.chunks]
+        return documents
+
 
 class KnwoledgeBase:
-    name: str = Field(description="知识库名称")
-    description: str = Field(description="知识库描述")
-    kb_files: List[KnwoledgeBaseFile] = Field(description="知识库文件", default=[])
+
+    def __init__(self, name: str, description=None, kb_files: List[KnwoledgeBaseFile] = [],
+                 vecstore_cls: str = "FAISS", embedding_config: dict = dict(model_cls="ZhipuEmbedding")) -> None:
+        self.name = name
+        self.description = description if description else f"{self.name}知识库"
+        self.kb_files = kb_files
+        self.vecstore_cls = get_vecstore_cls(vecstore_cls)
+        self.vecstore: VectorStore = None
+        self.embd_model: EMBD = get_embd_model(embedding_config)
+
+    def add_chunks(self, chunks: List[Chunk]):
+        logger.info(f"adding {len(chunks)} chunks to vecstore")
+        documents: List[Document] = [chunk.to_document() for chunk in chunks]
+        if not self.vecstore:
+            self.vecstore = self.vecstore_cls.from_documents(documents, embedding=self.embd_model)
+        else:
+            self.vecstore.add_documents(documents, embedding=self.embd_model)
+
+    def search(self, query: str, top_k: int = 3, score_threshold=None) -> List[RecalledChunk]:
+        if not self.vecstore:
+            logger.error("向量索引尚未建立，无法搜索!")
+            return []
+        docs_with_score = self.vecstore.similarity_search_with_score(query, k=top_k, score_threshold=score_threshold)
+        logger.info(f"{len(docs_with_score)} docs found")
+        recalled_chunks = [RecalledChunk.from_document(d, score=s) for d, s in docs_with_score]
+
+        return recalled_chunks
 
 
 if __name__ == "__main__":

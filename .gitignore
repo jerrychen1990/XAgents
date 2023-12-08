@@ -160,5 +160,6 @@ cython_debug/
 #.idea/
 
 knowledge_base
-
+data/
 tmp
+*.ipynb

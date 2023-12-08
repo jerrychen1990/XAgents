@@ -9,10 +9,10 @@
 import streamlit as st
 from xagents.agent.xagent import XAgent
 
-from xagents.model import list_models
+from xagents.model import list_llm_models
 
 
-models = list_models()
+models = list_llm_models()
 
 model = st.sidebar.selectbox('Select a model', models)
 

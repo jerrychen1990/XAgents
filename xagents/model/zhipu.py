@@ -6,10 +6,11 @@
 @Contact :   jerrychen1990@gmail.com
 '''
 
-from xagents.model.core import LLM
-from agit.backend.zhipuai_bk import call_llm_api
+from typing import List
+from xagents.model.core import LLM, EMBD
+from agit.backend.zhipuai_bk import call_llm_api, call_embedding_api
 from xagents.config import XAGENT_ENV
-from snippets import getlog
+from snippets import getlog, batch_process
 
 logger = getlog(XAGENT_ENV, __file__)
 
@@ -27,7 +28,33 @@ class GLM(LLM):
         return resp
 
 
+class ZhipuEmbedding(EMBD):
+    def __init__(self,  api_key=None, batch_size=16, norm=True):
+        self.api_key = api_key
+        self.batch_size = batch_size
+        self.norm = norm
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        logger.info(f"embedding {len(texts)} with {self.batch_size=}")
+        embd_func = batch_process(work_num=self.batch_size, return_list=True)(call_embedding_api)
+        embeddings = embd_func(texts, api_key=self.api_key, norm=self.norm)
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        embedding = call_embedding_api(text, api_key=self.api_key, norm=self.norm)
+        return embedding
+
+
 if __name__ == "__main__":
-    llm_model = GLM(name="glm", version="chatglm_turbo")
-    resp = llm_model.generate("你好", stream=False)
-    print(resp)
+    # llm_model = GLM(name="glm", version="chatglm_turbo")
+    # resp = llm_model.generate("你好", stream=False)
+    # print(resp)
+
+    embd_model = ZhipuEmbedding()
+    text = ["中国", "美国", "日本", "法国", "英国", "意大利", "西班牙", "德国", "俄罗斯"]
+    embds = embd_model.embed_documents(text)
+    print(len(embds))
+    print(embds[0][:4])
+    embd = embd_model.embed_query("你好")
+    print(len(embd))
+    print(embd[:4])
