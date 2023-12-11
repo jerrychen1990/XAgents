@@ -5,4 +5,4 @@
 @Author  :   ChenHao
 @Contact :   jerrychen1990@gmail.com
 '''
-from xagents.kb.core import KnwoledgeBase, KnwoledgeBaseFile, Chunk, RecalledChunk
+from xagents.kb.common import Chunk, RecalledChunk

@@ -10,12 +10,9 @@
 from xagents.agent.core import AbstractAgent
 from xagents.model import get_llm_model
 from xagents.memory import BaseMemory
+from xagents.util import get_log
 
-from snippets import getlog
-from xagents.config import XAGENT_ENV
-
-logger = getlog(XAGENT_ENV, __file__)
-
+logger = get_log(__name__)
 
 class XAgent(AbstractAgent):
 

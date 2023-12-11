@@ -9,10 +9,10 @@
 from typing import List
 from xagents.model.core import LLM, EMBD
 from agit.backend.zhipuai_bk import call_llm_api, call_embedding_api
-from xagents.config import XAGENT_ENV
-from snippets import getlog, batch_process
+from snippets import batch_process
+from xagents.util import get_log
 
-logger = getlog(XAGENT_ENV, __file__)
+logger = get_log(__name__)
 
 
 class GLM(LLM):
