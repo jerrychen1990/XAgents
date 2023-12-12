@@ -6,9 +6,18 @@
 @Contact :   jerrychen1990@gmail.com
 '''
 
-from typing import Generator, Union
+from typing import Generator, List, Optional, Union
 
 from abc import abstractmethod
+
+from pydantic import BaseModel, Field
+
+from xagents.kb.common import RecalledChunk
+
+
+class AgentResp(BaseModel):
+    message: Union[str, Generator] = Field(description="返回的消息")
+    chunks: Optional[List[RecalledChunk]] = Field(description="召回的片段")
 
 
 class AbstractAgent:
@@ -17,7 +26,7 @@ class AbstractAgent:
         self.name = name
 
     @abstractmethod
-    def chat(self, message: str, stream=True, do_remember=True) -> Union[Generator, str]:
+    def chat(self, message: str, stream=True, do_remember=True) -> AgentResp:
         raise NotImplementedError
 
     @abstractmethod

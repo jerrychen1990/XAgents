@@ -19,7 +19,7 @@ class AbstractMemory:
     def to_llm_history(self):
         raise NotImplementedError
 
-    def recall(self, role: str):
+    def clear(self):
         raise NotImplementedError
 
 
@@ -33,3 +33,6 @@ class BaseMemory(AbstractMemory):
 
     def to_llm_history(self):
         return self.memory
+
+    def clear(self):
+        self.memory.clear()

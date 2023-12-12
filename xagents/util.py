@@ -19,3 +19,9 @@ def get_log(name: str):
 
 
 DEFAULT_LOG = get_log("default")
+
+
+def format_prompt(template: str, **kwargs):
+    for k, v in kwargs:
+        template = template.replace("{k}", str(v))
+    return template

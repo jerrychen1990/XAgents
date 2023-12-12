@@ -5,6 +5,7 @@
 @Author  :   ChenHao
 @Contact :   jerrychen1990@gmail.com
 '''
+import copy
 from xagents.model.core import LLM, EMBD
 from xagents.model.zhipu import GLM, ZhipuEmbedding
 
@@ -26,9 +27,10 @@ def list_embd_models() -> list[str]:
 
 
 def get_llm_model(config: dict) -> LLM:
-    model_cls = config.pop("model_cls")
+    tmp_config = copy.copy(config)
+    model_cls = tmp_config.pop("model_cls")
     model_cls = _LLM_MODELS_DICT[model_cls]
-    return model_cls(**config)
+    return model_cls(**tmp_config)
 
 
 def get_embd_model(config: dict) -> EMBD:

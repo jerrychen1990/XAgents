@@ -8,7 +8,8 @@
 
 
 from abc import abstractmethod
-from langchain_core.embeddings import Embeddings as EMBD
+
+from langchain_core.embeddings import Embeddings
 
 
 class LLM:
@@ -17,5 +18,9 @@ class LLM:
         self.version = version
 
     @abstractmethod
-    def generate(self, prompt, history=[], system=None, stream=True):
+    def generate(self, prompt, history=[], system=None, stream=True,
+                 temperature=0.01, **kwargs):
         raise NotImplementedError
+
+
+EMBD = Embeddings

@@ -61,14 +61,39 @@ class KBChunk(Chunk):
 
 class RecalledChunk(KBChunk):
     score: float = Field(description="召回chunk的分数")
-    forwards: List[Chunk] = Field(description="chunk的下文扩展", default=[])
-    backwards: List[Chunk] = Field(description="chunk的上文扩展", default=[])
+    forwards: List[KBChunk] = Field(description="chunk的下文扩展", default=[])
+    backwards: List[KBChunk] = Field(description="chunk的上文扩展", default=[])
 
     @classmethod
     def from_document(cls, document: Document, score: float):
         chunk = cls.__bases__[0].from_document(document)
         recalled_chunk = cls(**chunk.__dict__, score=score)
         return recalled_chunk
+
+    def to_plain_text(self):
+        backwords_str = "\n".join([chunk.content for chunk in self.backwards])
+        forwards_str = "\n".join([chunk.content for chunk in self.forwards])
+        return f"{backwords_str}\n{self.content}\n{forwards_str}"
+
+    def to_detail_text(self):
+        backword_len = sum(len(c.content) for c in self.backwards)
+        forwards_len = sum(len(c.content) for c in self.forwards)
+        main_len = len(self.content)
+
+        detail_text = f"[score={self.score:2.3f}][{main_len}字][扩展后{backword_len+main_len+forwards_len}字][类型{self.content_type.value}][index:{self.idx}] **{self.content}**"
+
+        if backword_len:
+            backwords_str = "\n".join([f"[back{idx+1}]{chunk.content}" for idx, chunk in enumerate(self.backwards)])
+            backwords_str = f"上文：[{backword_len}]字\n{backwords_str}"
+            detail_text = backwords_str + "\n"+detail_text
+
+        if forwards_len:
+            forwards_str = "\n".join([f"[back{idx+1}]{chunk.content}" for idx, chunk in enumerate(self.forwards)])
+            forwards_str = f"下文：[{forwards_len}]字\n{forwards_str}"
+
+            detail_text = detail_text+forwards_str
+        logger.debug(f"{detail_text=}")
+        return detail_text
 
 
 class Table:

@@ -127,6 +127,10 @@ class KnwoledgeBase:
         os.makedirs(self.origin_dir, exist_ok=True)
         os.makedirs(self.chunk_dir, exist_ok=True)
 
+    def _get_kb_file_by_name(self, file_name: str) -> KnwoledgeBaseFile:
+        name2file = {e.file_name: e for e in self.kb_files}
+        return name2file.get(file_name)
+
     def _load_kb_files(self, re_parse=False) -> List[KnwoledgeBaseFile]:
         logger.info("loading kb files...")
         kb_files = []
@@ -174,9 +178,12 @@ class KnwoledgeBase:
 
     def remove_file(self, kb_file: Union[KnwoledgeBaseFile, str]):
         if isinstance(kb_file, str):
-            kb_file = [e for e in self.kb_files if e.file_name == kb_file][0]
-            self.kb_files.remove(kb_file)
-            kb_file.remove()
+            kb_file = self._get_kb_file_by_name(kb_file)
+        if not kb_file:
+            return
+
+        self.kb_files.remove(kb_file)
+        kb_file.remove()
         self.rebuild()
 
     def delete(self):
@@ -199,7 +206,8 @@ class KnwoledgeBase:
         self._add_chunks(chunks)
 
     @log_cost_time(name="kb_search")
-    def search(self, query: str, top_k: int = 3, score_threshold=None) -> List[RecalledChunk]:
+    def search(self, query: str, top_k: int = 3, score_threshold=None,
+               do_expand=False, expand_len: int = 500, forward_rate: float = 0.5) -> List[RecalledChunk]:
         if not self.vecstore:
             logger.error("向量索引尚未建立，无法搜索!")
             return []
