@@ -10,34 +10,11 @@ import re
 from abc import abstractmethod
 from typing import List
 from xagents.config import *
-from xagents.kb.common import Chunk, ContentType, Dim1Table, Dim2Table, Table, TableType
+from xagents.kb.common import Chunk, ContentType, Dim1Table, Dim2Table, Table
 
 from xagents.util import DEFAULT_LOG
 
 logger = DEFAULT_LOG
-
-
-def is_head_spliter(line):
-    return re.match("\||([|-]*)\||", line.strip())
-
-
-def is_kv_table(cols):
-    return len(cols) == 2
-
-
-def convert_kv_table(lines):
-    rs = []
-    for line in lines:
-        if is_head_spliter(line):
-            continue
-
-        rs.append(f"")
-
-
-def judge_table_type(line):
-    if len(line) == 2:
-        return TableType.KV_TABLE
-    return TableType.KV_TABLE
 
 
 def lines2table(lines) -> Table:
@@ -68,7 +45,7 @@ class AbstractSplitter:
         raise NotImplementedError
 
     def split_chunk(self, chunk: Chunk) -> List[Chunk]:
-        return [Chunk(content=e, content_type=chunk.content_type, page_idx=chunk.page_idx) for e in self.split(chunk.content)]
+        return [Chunk(content=e.strip(), content_type=chunk.content_type, page_idx=chunk.page_idx) for e in self.split(chunk.content) if e.strip()]
 
 
 class BaseSplitter(AbstractSplitter):
@@ -92,7 +69,7 @@ class BaseSplitter(AbstractSplitter):
         if chunk.content_type == ContentType.TABLE:
             table = markdown2table(chunk.content)
             descs = table.to_desc()
-            table_chunks = [Chunk(content=e, content_type=chunk.content_type, page_idx=chunk.page_idx) for e in descs]
+            table_chunks = [Chunk(content=e, content_type=ContentType.PARSED_TABLE, page_idx=chunk.page_idx) for e in descs]
             chunks.extend(table_chunks)
         return chunks
 

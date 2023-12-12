@@ -18,7 +18,7 @@ TEMP_DIR = os.environ.get("XAGENT_TEMP_DIR", os.path.join(XAGENT_HOME, "tmp"))
 LOG_DIR = os.environ.get("XAGENT_LOG_DIR", os.path.join(XAGENT_HOME, "log"))
 
 
-logger = getlog("prod", __file__)
+logger = getlog("dev", __file__)
 print_info("current XAgent env", logger)
 logger.info(f"{XAGENT_ENV=}")
 logger.info(f"{KNOWLEDGE_BASE_DIR=}")

@@ -7,7 +7,8 @@
 '''
 
 import os
-from typing import Type
+from typing import List, Type
+from xagents.kb.common import Chunk
 from xagents.kb.loader.common import AbastractLoader
 from xagents.kb.loader.markdown import MarkDownLoader
 from xagents.kb.loader.pdf import PDFLoader
@@ -29,7 +30,7 @@ def get_loader_cls(file_path: str) -> Type[AbastractLoader]:
     return loader
 
 
-def load_file(file_path: str, **kwargs):
+def load_file(file_path: str, **kwargs) -> List[Chunk]:
     loader_cls = get_loader_cls(file_path)
     loader: AbastractLoader = loader_cls(**kwargs)
     contents = loader.load(file_path)

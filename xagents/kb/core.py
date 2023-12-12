@@ -7,7 +7,7 @@
 '''
 
 
-from typing import List
+from typing import List, Union
 from xagents.config import *
 import shutil
 from snippets import jdump_lines, jload_lines, log_cost_time
@@ -17,6 +17,7 @@ from xagents.kb.splitter import BaseSplitter
 from xagents.kb.common import *
 from xagents.model import EMBD, get_embd_model
 from langchain_core.documents import Document
+from langchain.vectorstores.utils import DistanceStrategy
 
 
 # 知识库处理后的切片基础类型
@@ -30,6 +31,10 @@ def get_chunk_path(kb_name, file_name) -> str:
     return os.path.join(get_kb_dir(kb_name), "chunk", file_name+".jsonl")
 
 
+def get_origin_path(kb_name, file_name) -> str:
+    return os.path.join(get_kb_dir(kb_name), "origin", file_name)
+
+
 class KnwoledgeBaseFile:
     def __init__(self, kb_name: str, origin_file_path: str):
         self.kb_name = kb_name
@@ -40,7 +45,7 @@ class KnwoledgeBaseFile:
         self._save_origin()
 
     def _save_origin(self):
-        dst_path = os.path.join(get_kb_dir(self.kb_name), "origin", self.file_name)
+        dst_path = get_origin_path(self.kb_name, self.file_name)
         if dst_path == self.origin_file_path:
             return
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
@@ -48,7 +53,6 @@ class KnwoledgeBaseFile:
         shutil.copy(self.origin_file_path, dst_path)
 
     # 加载/切割文件
-
     def _split(self, origin_chunks: List[Chunk]) -> List[KBChunk]:
         rs_chunks, idx = [], 0
         splitter = BaseSplitter(parse_table=True)
@@ -66,6 +70,7 @@ class KnwoledgeBaseFile:
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
         logger.info(f"save chunks to {dst_path}")
         to_dumps = [c.to_dict() for c in self.chunks]
+        # logger.info(f"{to_dumps=}")
         jdump_lines(to_dumps, dst_path)
 
     def load_chunks(self, chunk_path: str):
@@ -74,11 +79,23 @@ class KnwoledgeBaseFile:
         self.chunks: List[Chunk] = [Chunk(**c, idx=idx, kb_name=self.kb_name, file_name=self.file_name) for idx, c in enumerate(chunk_dicts)]
         return self.chunks
 
+    def remove(self):
+        chunk_path = get_chunk_path(self.kb_name, self.file_name)
+        if os.path.exists(chunk_path):
+            os.remove(chunk_path)
+
+        origin_path = get_origin_path(self.kb_name, self.file_name)
+        if os.path.exists(origin_path):
+            os.remove(origin_path)
+
     def parse(self) -> List[KBChunk]:
         logger.info("start parsing")
-        pages = load_file(self.origin_file_path)
-        logger.info(f"load {len(pages)} pages")
-        self.chunks = self._split(pages)
+        origin_chunks: List[Chunk] = load_file(self.origin_file_path)
+        logger.info(f"load {len(origin_chunks)} origin_chunks")
+        # logger.info(origin_chunks[:4])
+        self.chunks = self._split(origin_chunks)
+        # logger.info(self.chunks[:4])
+
         logger.info(f"splitted to {len(self.chunks)} kb_chunks")
         self._save_chunks()
         return self.chunks
@@ -86,7 +103,9 @@ class KnwoledgeBaseFile:
 
 class KnwoledgeBase:
 
-    def __init__(self, name: str, description=None, vecstore_cls: str = "FAISS", reparse=False,
+    def __init__(self, name: str, description=None, vecstore_cls: str = "FAISS",
+                 distance_strategy: DistanceStrategy = DistanceStrategy.MAX_INNER_PRODUCT,
+                 reparse=False,
                  embedding_config: dict = dict(model_cls="ZhipuEmbedding")) -> None:
         self.name = name
         self.description = description if description else f"{self.name}知识库"
@@ -95,6 +114,7 @@ class KnwoledgeBase:
         self.embd_model: EMBD = get_embd_model(embedding_config)
 
         self.kb_files: List[KnwoledgeBaseFile] = self._load_kb_files(re_parse=reparse)
+        self.distance_strategy = distance_strategy
         self.vecstore_cls = get_vecstore_cls(vecstore_cls)
         self.vecstore = self._load_vecstore()
 
@@ -125,7 +145,7 @@ class KnwoledgeBase:
         if os.path.exists(self.vecstore_path):
             logger.info(f"loading vecstore from {self.vecstore_path}")
             vecstore = self.vecstore_cls.load_local(folder_path=self.vecstore_path,
-                                                    embeddings=self.embd_model,)
+                                                    embeddings=self.embd_model, distance_strategy=self.distance_strategy)
         else:
             logger.info(f"{self.vecstore_path} not exists, will not load vecstore")
             vecstore = None
@@ -135,30 +155,46 @@ class KnwoledgeBase:
         logger.info(f"adding {len(chunks)} chunks to vecstore")
         documents: List[Document] = [chunk.to_document() for chunk in chunks]
         if not self.vecstore:
-            self.vecstore = self.vecstore_cls.from_documents(documents, embedding=self.embd_model)
+            self.vecstore = self.vecstore_cls.from_documents(documents, embedding=self.embd_model, distance_strategy=self.distance_strategy)
         else:
             self.vecstore.add_documents(documents, embedding=self.embd_model)
         logger.info("storing vectors...")
         self.vecstore.save_local(self.vecstore_path)
 
     def add_kb_file(self, kb_file: KnwoledgeBaseFile):
+        logger.info(f"adding {kb_file.name} to {self.name}")
         if not kb_file.chunks:
             kb_file.parse()
         self._add_chunks(kb_file.chunks)
+        logger.info("add kb_file done")
 
     def add_file(self, file_path: str):
         kb_file = KnwoledgeBaseFile(kb_name=self.name, origin_file_path=file_path)
         self.add_kb_file(kb_file)
 
+    def remove_file(self, kb_file: Union[KnwoledgeBaseFile, str]):
+        if isinstance(kb_file, str):
+            kb_file = [e for e in self.kb_files if e.file_name == kb_file][0]
+            self.kb_files.remove(kb_file)
+            kb_file.remove()
+        self.rebuild()
+
+    def delete(self):
+        logger.info(f"deleting kb:{self.name}")
+        shutil.rmtree(path=self.kb_dir)
+        logger.info(f"{self.name} deleted")
+
     @log_cost_time(name="rebuild vectstore")
-    def rebuild(self):
+    def rebuild(self, re_parse=False):
         all_chunks = []
 
         for kb_file in self.kb_files:
-            logger.info(f"rebuilding {kb_file}")
+            logger.info(f"rebuilding {kb_file.file_name}")
+            if not kb_file.chunks or re_parse:
+                kb_file.parse()
             chunks = kb_file.chunks
-            all_chunks.extend(all_chunks)
-        logger.info(f"rebuilding vecstore with {len(all_chunks)}")
+            all_chunks.extend(chunks)
+        logger.info(f"rebuilding vecstore with {len(all_chunks)} chunks")
         self.vecstore = None
         self._add_chunks(chunks)
 
@@ -169,7 +205,14 @@ class KnwoledgeBase:
             return []
         docs_with_score = self.vecstore.similarity_search_with_score(query, k=top_k, score_threshold=score_threshold)
         logger.info(f"{len(docs_with_score)} docs found")
-        recalled_chunks = [RecalledChunk.from_document(d, score=s) for d, s in docs_with_score]
+
+        def _get_score(s):
+            if self.distance_strategy in [DistanceStrategy.EUCLIDEAN_DISTANCE]:
+                return 1.-s
+            return s
+
+        recalled_chunks = [RecalledChunk.from_document(d, score=_get_score(s)) for d, s in docs_with_score]
+        recalled_chunks.sort(key=lambda x: x.score, reverse=True)
 
         return recalled_chunks
 

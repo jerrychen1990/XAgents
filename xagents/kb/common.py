@@ -23,6 +23,7 @@ class ContentType(str, enum.Enum):
     TABLE = "TABLE"
     TITLE = "TITLE"
     TEXT = "TEXT"
+    PARSED_TABLE = "PARSED_TABLE"
 
 
 class Chunk(BaseModel):
@@ -36,9 +37,9 @@ class KBChunk(Chunk):
     kb_name: str = Field(description="知识库名称")
     file_name: str = Field(description="文件名称")
     idx: int = Field(description="chunk在文档中的顺序,从0开始")
-    
+
     def to_dict(self):
-        return super().model_dump_json()
+        return self.model_dump(mode="json", exclude_none=True, exclude={"kb_name", "file_name", "idx"})
 
     def to_document(self) -> Document:
         if self.search_content:
@@ -58,7 +59,7 @@ class KBChunk(Chunk):
         return cls(**item)
 
 
-class RecalledChunk(Chunk):
+class RecalledChunk(KBChunk):
     score: float = Field(description="召回chunk的分数")
     forwards: List[Chunk] = Field(description="chunk的下文扩展", default=[])
     backwards: List[Chunk] = Field(description="chunk的上文扩展", default=[])
@@ -68,10 +69,6 @@ class RecalledChunk(Chunk):
         chunk = cls.__bases__[0].from_document(document)
         recalled_chunk = cls(**chunk.__dict__, score=score)
         return recalled_chunk
-
-
-class TableType(str, enum.Enum):
-    KV_TABLE = "KV_TABLE"
 
 
 class Table:
@@ -85,7 +82,7 @@ class Dim1Table(Table, BaseModel):
     values: List[str] = Field(description="value字段", default=None)
 
     def to_desc(self) -> List[str]:
-        logger.debug(f"parsing a dim1table with {len(self.keys)} keys")
+        # logger.debug(f"parsing a dim1table with {len(self.keys)} keys")
         descs = []
         assert len(self.keys) == len(self.values)
         for k, v in zip(self.keys, self.values):
@@ -100,7 +97,7 @@ class Dim2Table(Table, BaseModel):
 
     def to_desc(self) -> List[str]:
         descs = []
-        logger.debug(f"parsing a dim2table with {len(self.values)} rows and {len(self.values[0])} cols")
+        # logger.debug(f"parsing a dim2table with {len(self.values)} rows and {len(self.values[0])} cols")
 
         assert len(self.dim1_keys) == len(self.values) and len(self.dim2_keys) == len(self.values[0])
         for r, k1 in enumerate(self.dim1_keys):
