@@ -17,7 +17,7 @@ from xagents.kb.common import RecalledChunk
 
 class AgentResp(BaseModel):
     message: Union[str, Generator] = Field(description="返回的消息")
-    chunks: Optional[List[RecalledChunk]] = Field(description="召回的片段")
+    references: Optional[List[RecalledChunk]] = Field(description="召回的片段")
 
 
 class AbstractAgent:

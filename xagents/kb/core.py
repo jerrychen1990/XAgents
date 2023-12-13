@@ -103,10 +103,13 @@ class KnwoledgeBaseFile:
 
 class KnwoledgeBase:
 
-    def __init__(self, name: str, description=None, vecstore_cls: str = "FAISS",
+    def __init__(self, name: str,
+                 embedding_config: dict,
+                 description=None,
+                 vecstore_cls: str = "FAISS",
                  distance_strategy: DistanceStrategy = DistanceStrategy.MAX_INNER_PRODUCT,
                  reparse=False,
-                 embedding_config: dict = dict(model_cls="ZhipuEmbedding")) -> None:
+                 ) -> None:
         self.name = name
         self.description = description if description else f"{self.name}知识库"
         self._build_dirs()

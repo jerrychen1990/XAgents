@@ -33,7 +33,7 @@ def get_knowledge_base(name: str) -> KnwoledgeBase:
     kb_names = list_knowledge_base_names()
     assert name in kb_names
     # TODO load逻辑，从数据库中获取kb信息
-    kb = KnwoledgeBase(name=name)
+    kb = KnwoledgeBase(name=name, embedding_config=dict(model_cls="ZhipuEmbedding"))
     return kb
 
 

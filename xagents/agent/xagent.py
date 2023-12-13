@@ -78,7 +78,7 @@ class XAgent(AbstractAgent):
             model_message = model_resp
             _remember_callback(model_message)
 
-        resp = AgentResp(message=model_message, chunks=chunks)
+        resp = AgentResp(message=model_message, references=chunks)
         return resp
 
     def remember(self, role: str, message: str):

@@ -34,9 +34,10 @@ def get_llm_model(config: dict) -> LLM:
 
 
 def get_embd_model(config: dict) -> EMBD:
-    model_cls = config.pop("model_cls")
+    tmp_config = copy.copy(config)
+    model_cls = tmp_config.pop("model_cls")
     model_cls = _EMBD_MODELS_DICT[model_cls]
-    return model_cls(**config)
+    return model_cls(**tmp_config)
 
 
 if __name__ == "__main__":

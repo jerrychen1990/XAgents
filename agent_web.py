@@ -85,10 +85,10 @@ if message := st.chat_input("你好，你是谁？"):
         full_response += token
         message_placeholder.markdown(full_response + "▌")
     message_placeholder.markdown(full_response)
-    if resp.chunks:
+    if resp.references:
         logger.debug("adding chunks info")
         with reference_placeholder.expander("参考信息", expanded=False):
-            references = [f"[{idx+1}]  {chunk.to_detail_text()}" for idx, chunk in enumerate(resp.chunks)]
+            references = [f"[{idx+1}]  {chunk.to_detail_text()}" for idx, chunk in enumerate(resp.references)]
             references = "\n\n--------\n\n".join(references)
             st.markdown(references)
 
