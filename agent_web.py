@@ -20,6 +20,8 @@ DEFAULT_MODEL = "GLM"
 DEFAULT_KB = "guizhoumaotai"
 DEFAULT_TEMPERATURE = 0.01
 DEFAULT_TOP_K = 3
+DEFAULT_EXPAND_LEN = 500
+DEFAULT_FORWARD_RATE = 0.5
 
 models = list_llm_models()
 model = st.sidebar.selectbox('选择模型类型', models, index=models.index(DEFAULT_MODEL))
@@ -37,7 +39,10 @@ if use_kb:
     kb_names = list_knowledge_base_names()
     kb_name = st.sidebar.selectbox('选择知识库', kb_names, index=kb_names.index(DEFAULT_KB))
     top_k = st.sidebar.number_input('召回数', value=DEFAULT_TOP_K, min_value=1, max_value=10, step=1)
-    chat_kwargs.update(top_k=top_k)
+    expand_len = st.sidebar.number_input('扩展长度', value=DEFAULT_EXPAND_LEN, min_value=1, max_value=2000, step=1)
+    forward_rate = st.sidebar.slider('向下扩展比例', value=DEFAULT_FORWARD_RATE, min_value=0.0, max_value=1., step=0.01)
+
+    chat_kwargs.update(top_k=top_k, expand_len=expand_len, forward_rate=forward_rate)
 
 
 else:
@@ -80,7 +85,7 @@ if message := st.chat_input("你好，你是谁？"):
         reference_placeholder = st.empty()
 
         full_response = ""
-    resp: AgentResp = agent.chat(message=message, use_kb=use_kb, **chat_kwargs)
+    resp: AgentResp = agent.chat(message=message, use_kb=use_kb, do_expand=True, **chat_kwargs)
     for token in resp.message:
         full_response += token
         message_placeholder.markdown(full_response + "▌")

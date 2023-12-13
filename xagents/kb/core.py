@@ -7,10 +7,11 @@
 '''
 
 
+import re
 from typing import List, Union
 from xagents.config import *
 import shutil
-from snippets import jdump_lines, jload_lines, log_cost_time
+from snippets import jdump_lines, jload_lines, log_cost_time, read2list
 from xagents.kb.vector_store import get_vecstore_cls, VectorStore
 from xagents.kb.loader import load_file
 from xagents.kb.splitter import BaseSplitter
@@ -169,7 +170,7 @@ class KnwoledgeBase:
         self.vecstore.save_local(self.vecstore_path)
 
     def add_kb_file(self, kb_file: KnwoledgeBaseFile):
-        logger.info(f"adding {kb_file.name} to {self.name}")
+        logger.info(f"adding {kb_file.file_name} to {self.name}")
         if not kb_file.chunks:
             kb_file.parse()
         self._add_chunks(kb_file.chunks)
@@ -210,22 +211,87 @@ class KnwoledgeBase:
 
     @log_cost_time(name="kb_search")
     def search(self, query: str, top_k: int = 3, score_threshold=None,
+               split_query=False,
                do_expand=False, expand_len: int = 500, forward_rate: float = 0.5) -> List[RecalledChunk]:
         if not self.vecstore:
             logger.error("向量索引尚未建立，无法搜索!")
             return []
-        docs_with_score = self.vecstore.similarity_search_with_score(query, k=top_k, score_threshold=score_threshold)
-        logger.info(f"{len(docs_with_score)} docs found")
+
+        recalled_chunks = []
+        querys = split_query(query, split_query)
 
         def _get_score(s):
             if self.distance_strategy in [DistanceStrategy.EUCLIDEAN_DISTANCE]:
                 return 1.-s
             return s
+        for query in querys:
+            logger.debug(f"searching {query}")
+            docs_with_score = self.vecstore.similarity_search_with_score(query, k=top_k, score_threshold=score_threshold)
+            tmp_recalled_chunks = [RecalledChunk.from_document(d, score=_get_score(s)) for d, s in docs_with_score]
+            recalled_chunks.extend(tmp_recalled_chunks)
 
-        recalled_chunks = [RecalledChunk.from_document(d, score=_get_score(s)) for d, s in docs_with_score]
+        logger.info(f"{len(recalled_chunks)} origin chunks found")
         recalled_chunks.sort(key=lambda x: x.score, reverse=True)
+        recalled_chunks = recalled_chunks[:top_k]
+        logger.info(f"get {len(recalled_chunks)} final chunks after sort")
+
+        if do_expand:
+            logger.info("expanding recalled chunks")
+            for chunk in recalled_chunks:
+                expand_chunk(chunk, expand_len, forward_rate)
 
         return recalled_chunks
+
+
+def split_query(query: str, split_query=False) -> List[str]:
+    if split_query:
+        return re.split("\?？", query)
+    else:
+        return [query]
+
+
+# 扩展上下文到给定的长度
+def expand_chunk(chunk: RecalledChunk, expand_len: int, forward_rate=0.5) -> RecalledChunk:
+    chunk_path = get_chunk_path(chunk.kb_name, chunk.file_name)
+    chunks = []
+    for item in read2list(chunk_path):
+        tmp = Chunk(**item)
+        chunks.append(tmp)
+    chunk_idx = chunk.idx
+
+    to_expand = expand_len - len(chunk.content)
+    if to_expand <= 0:
+        return chunk
+
+    forward_len = int(to_expand * forward_rate)
+    backward_len = to_expand - forward_len
+    logger.debug(f"epand chunk with :{forward_len=}, {backward_len=}")
+    backwards, forwards = [], []
+
+    # 查找前面的chunk
+    idx = chunk_idx-1
+    while idx >= 0:
+        tmp_chunk = chunks[idx]
+        backward_len -= len(tmp_chunk.content)
+        if backward_len < 0:
+            break
+        backwards.append(tmp_chunk)
+        idx -= 1
+    backwards.reverse()
+
+    idx = chunk_idx + 1
+    while idx < len(chunks):
+        tmp_chunk = chunks[idx]
+        forward_len -= len(tmp_chunk.content)
+        if forward_len < 0:
+            break
+        forwards.append(tmp_chunk)
+        idx += 1
+
+    logger.debug(f"expand with {len(backwards)} backward chunks and {len(forwards)} forward chunks")
+    chunk.backwards = backwards
+    chunk.forwards = forwards
+    return chunk
 
 
 if __name__ == "__main__":

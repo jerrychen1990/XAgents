@@ -60,14 +60,15 @@ class KBChunk(Chunk):
 
 
 class RecalledChunk(KBChunk):
+    query: str = Field(description="召回chunk的query")
     score: float = Field(description="召回chunk的分数")
     forwards: List[KBChunk] = Field(description="chunk的下文扩展", default=[])
     backwards: List[KBChunk] = Field(description="chunk的上文扩展", default=[])
 
     @classmethod
-    def from_document(cls, document: Document, score: float):
+    def from_document(cls, document: Document, query: str, score: float):
         chunk = cls.__bases__[0].from_document(document)
-        recalled_chunk = cls(**chunk.__dict__, score=score)
+        recalled_chunk = cls(**chunk.__dict__, query=query, score=score)
         return recalled_chunk
 
     def to_plain_text(self):
@@ -83,23 +84,37 @@ class RecalledChunk(KBChunk):
         detail_text = f"[score={self.score:2.3f}][{main_len}字][扩展后{backword_len+main_len+forwards_len}字][类型{self.content_type.value}][index:{self.idx}] **{self.content}**"
 
         if backword_len:
-            backwords_str = "\n".join([f"[back{idx+1}]{chunk.content}" for idx, chunk in enumerate(self.backwards)])
-            backwords_str = f"上文：[{backword_len}]字\n{backwords_str}"
-            detail_text = backwords_str + "\n"+detail_text
+            backwords_str = "\n\n".join([f"[back{idx+1}]{chunk.content}" for idx, chunk in enumerate(self.backwards)])
+            backwords_str = f"上文：[{backword_len}]字\\nn{backwords_str}"
+            detail_text = backwords_str + "\n\n"+detail_text
 
         if forwards_len:
-            forwards_str = "\n".join([f"[back{idx+1}]{chunk.content}" for idx, chunk in enumerate(self.forwards)])
-            forwards_str = f"下文：[{forwards_len}]字\n{forwards_str}"
+            forwards_str = "\n\n".join([f"[back{idx+1}]{chunk.content}" for idx, chunk in enumerate(self.forwards)])
+            forwards_str = f"下文：[{forwards_len}]字\n\n{forwards_str}"
 
-            detail_text = detail_text+forwards_str
+            detail_text = detail_text+"\n\n"+forwards_str
         logger.debug(f"{detail_text=}")
         return detail_text
 
 
 class Table:
+    row_context: str
+    col_context: str
+
     @abstractmethod
     def to_desc(self) -> List[str]:
         raise NotImplementedError
+
+    def get_context_info(self):
+        if self.row_context:
+            if self.col_context:
+                return f"在[{self.row_context}, {self.col_context}]下，"
+            else:
+                return f"在{self.row_context}下，"
+        else:
+            if self.col_context:
+                return f"在{self.col_context}下，"
+            return ""
 
 
 class Dim1Table(Table, BaseModel):
@@ -111,7 +126,9 @@ class Dim1Table(Table, BaseModel):
         descs = []
         assert len(self.keys) == len(self.values)
         for k, v in zip(self.keys, self.values):
-            descs.append(f"{k}是{v}")
+            k, v = k.strip(), v.strip()
+            if k and v:
+                descs.append(f"{self.get_context_info()}{k}是{v}")
         return descs
 
 
@@ -127,8 +144,10 @@ class Dim2Table(Table, BaseModel):
         assert len(self.dim1_keys) == len(self.values) and len(self.dim2_keys) == len(self.values[0])
         for r, k1 in enumerate(self.dim1_keys):
             for c, k2 in enumerate(self.dim2_keys):
-                if len(self.dim1_keys) <= len(self.dim2_keys):
-                    descs.append(f"({k1},{k2})是{self.values[r][c]}")
-                else:
-                    descs.append(f"({k2},{k1})是{self.values[r][c]}")
+                k1, k2, v = k1.strip(), k2.strip(), self.values[r][c].strip()
+                if k1 and k2 and v:
+                    if len(self.dim1_keys) <= len(self.dim2_keys):
+                        descs.append(f"{self.get_context_info()}({k1},{k2})是{self.values[r][c]}")
+                    else:
+                        descs.append(f"{self.get_context_info()}({k2},{k1})是{self.values[r][c]}")
         return descs
