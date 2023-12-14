@@ -14,7 +14,7 @@ import shutil
 from snippets import jdump_lines, jload_lines, log_cost_time, read2list
 from xagents.kb.vector_store import get_vecstore_cls, VectorStore
 from xagents.kb.loader import load_file
-from xagents.kb.splitter import BaseSplitter
+from xagents.kb.splitter import AbstractSplitter
 from xagents.kb.common import *
 from xagents.model import EMBD, get_embd_model
 from langchain_core.documents import Document
@@ -37,7 +37,8 @@ def get_origin_path(kb_name, file_name) -> str:
 
 
 class KnwoledgeBaseFile:
-    def __init__(self, kb_name: str, origin_file_path: str):
+    def __init__(self, kb_name: str,
+                 origin_file_path: str):
         self.kb_name = kb_name
         self.file_name = os.path.basename(origin_file_path)
         self.stem, self.suffix = os.path.splitext(self.file_name)
@@ -54,9 +55,8 @@ class KnwoledgeBaseFile:
         shutil.copy(self.origin_file_path, dst_path)
 
     # 加载/切割文件
-    def _split(self, origin_chunks: List[Chunk]) -> List[KBChunk]:
+    def _split(self, origin_chunks: List[Chunk], splitter: AbstractSplitter) -> List[KBChunk]:
         rs_chunks, idx = [], 0
-        splitter = BaseSplitter(parse_table=True)
         for origin_chunk in origin_chunks:
             chunks = splitter.split_chunk(origin_chunk)
             for chunk in chunks:
@@ -89,16 +89,16 @@ class KnwoledgeBaseFile:
         if os.path.exists(origin_path):
             os.remove(origin_path)
 
-    def parse(self) -> List[KBChunk]:
+    def parse(self, splitter: AbstractSplitter, do_save=True) -> List[KBChunk]:
         logger.info("start parsing")
         origin_chunks: List[Chunk] = load_file(self.origin_file_path)
         logger.info(f"load {len(origin_chunks)} origin_chunks")
         # logger.info(origin_chunks[:4])
-        self.chunks = self._split(origin_chunks)
-        # logger.info(self.chunks[:4])
-
+        self.chunks = self._split(origin_chunks, splitter)
         logger.info(f"splitted to {len(self.chunks)} kb_chunks")
-        self._save_chunks()
+
+        if do_save:
+            self._save_chunks()
         return self.chunks
 
 
@@ -108,8 +108,7 @@ class KnwoledgeBase:
                  embedding_config: dict,
                  description=None,
                  vecstore_cls: str = "FAISS",
-                 distance_strategy: DistanceStrategy = DistanceStrategy.MAX_INNER_PRODUCT,
-                 reparse=False,
+                 distance_strategy: DistanceStrategy = DistanceStrategy.MAX_INNER_PRODUCT
                  ) -> None:
         self.name = name
         self.description = description if description else f"{self.name}知识库"
@@ -117,7 +116,7 @@ class KnwoledgeBase:
 
         self.embd_model: EMBD = get_embd_model(embedding_config)
 
-        self.kb_files: List[KnwoledgeBaseFile] = self._load_kb_files(re_parse=reparse)
+        self.kb_files: List[KnwoledgeBaseFile] = self._load_kb_files()
         self.distance_strategy = distance_strategy
         self.vecstore_cls = get_vecstore_cls(vecstore_cls)
         self.vecstore = self._load_vecstore()
@@ -142,10 +141,8 @@ class KnwoledgeBase:
             logger.info(f"loading kb_file:{file_name}")
             kb_file: KnwoledgeBaseFile = KnwoledgeBaseFile(kb_name=self.name, origin_file_path=os.path.join(self.origin_dir, file_name))
             chunk_path = get_chunk_path(self.kb_dir, file_name)
-            if not re_parse and os.path.exists(chunk_path):
+            if os.path.exists(chunk_path):
                 kb_file.load_chunks(chunk_path)
-            else:
-                kb_file.parse()
             kb_files.append(kb_file)
         return kb_files
 
@@ -159,7 +156,7 @@ class KnwoledgeBase:
             vecstore = None
         return vecstore
 
-    def _add_chunks(self, chunks: List[Chunk]):
+    def _add_chunks(self, chunks: List[KBChunk]):
         logger.info(f"adding {len(chunks)} chunks to vecstore")
         documents: List[Document] = [chunk.to_document() for chunk in chunks]
         if not self.vecstore:
@@ -169,16 +166,16 @@ class KnwoledgeBase:
         logger.info("storing vectors...")
         self.vecstore.save_local(self.vecstore_path)
 
-    def add_kb_file(self, kb_file: KnwoledgeBaseFile):
+    def add_kb_file(self, kb_file: KnwoledgeBaseFile, splitter: AbstractSplitter):
         logger.info(f"adding {kb_file.file_name} to {self.name}")
         if not kb_file.chunks:
-            kb_file.parse()
+            kb_file.parse(splitter=splitter, do_save=True)
         self._add_chunks(kb_file.chunks)
         logger.info("add kb_file done")
 
-    def add_file(self, file_path: str):
+    def add_file(self, file_path: str, splitter: AbstractSplitter):
         kb_file = KnwoledgeBaseFile(kb_name=self.name, origin_file_path=file_path)
-        self.add_kb_file(kb_file)
+        self.add_kb_file(kb_file, splitter=splitter)
 
     def remove_file(self, kb_file: Union[KnwoledgeBaseFile, str]):
         if isinstance(kb_file, str):
@@ -211,14 +208,15 @@ class KnwoledgeBase:
 
     @log_cost_time(name="kb_search")
     def search(self, query: str, top_k: int = 3, score_threshold=None,
-               split_query=False,
+               do_split_query=False,
                do_expand=False, expand_len: int = 500, forward_rate: float = 0.5) -> List[RecalledChunk]:
         if not self.vecstore:
             logger.error("向量索引尚未建立，无法搜索!")
             return []
 
         recalled_chunks = []
-        querys = split_query(query, split_query)
+        querys = split_query(query, do_split_query)
+        logger.debug(f"split origin query into {len(querys)} querys")
 
         def _get_score(s):
             if self.distance_strategy in [DistanceStrategy.EUCLIDEAN_DISTANCE]:
@@ -227,7 +225,8 @@ class KnwoledgeBase:
         for query in querys:
             logger.debug(f"searching {query}")
             docs_with_score = self.vecstore.similarity_search_with_score(query, k=top_k, score_threshold=score_threshold)
-            tmp_recalled_chunks = [RecalledChunk.from_document(d, score=_get_score(s)) for d, s in docs_with_score]
+            logger.debug(f"{len(docs_with_score)} origin chunks found")
+            tmp_recalled_chunks = [RecalledChunk.from_document(d, score=_get_score(s), query=query) for d, s in docs_with_score]
             recalled_chunks.extend(tmp_recalled_chunks)
 
         logger.info(f"{len(recalled_chunks)} origin chunks found")
@@ -243,8 +242,8 @@ class KnwoledgeBase:
         return recalled_chunks
 
 
-def split_query(query: str, split_query=False) -> List[str]:
-    if split_query:
+def split_query(query: str, do_split_query=False) -> List[str]:
+    if do_split_query:
         return re.split("\?？", query)
     else:
         return [query]

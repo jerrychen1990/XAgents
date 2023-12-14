@@ -72,9 +72,14 @@ class RecalledChunk(KBChunk):
         return recalled_chunk
 
     def to_plain_text(self):
-        backwords_str = "\n".join([chunk.content for chunk in self.backwards])
-        forwards_str = "\n".join([chunk.content for chunk in self.forwards])
-        return f"{backwords_str}\n{self.content}\n{forwards_str}"
+        rs = self.content
+        if self.backwards:
+            backwords_str = "\n".join([chunk.content for chunk in self.backwards])
+            rs = backwords_str + "\n" + rs
+        if self.forwards:
+            forwards_str = "\n".join([chunk.content for chunk in self.forwards])
+            rs = rs+"\n"+forwards_str
+        return rs
 
     def to_detail_text(self):
         backword_len = sum(len(c.content) for c in self.backwards)

@@ -9,7 +9,7 @@ import datetime
 import time
 import streamlit as st
 import pandas as pd
-from snippets import dump_list, batch_process
+from snippets import dump_list, batch_process, jdumps
 from xagents.config import *
 from xagents.agent.core import AgentResp
 from xagents.agent.xagent import XAgent
@@ -38,7 +38,24 @@ DEFAULT_MODEL = "GLM"
 DEFAULT_KB = "guizhoumaotai"
 DEFAULT_TEMPERATURE = 0.01
 DEFAULT_TOP_K = 3
+DEFAULT_EXPAND_LEN = 500
+DEFAULT_FORWARD_RATE = 0.5
+DEFAULT_KB_PROMPT_TEMPLATE = '''
+有如下的年报信息：
 
+"""
+{reference}
+"""
+
+使用上述年报信息，回答下方问题，你所需要的全部内容都在年报信息中。
+如果没有找到相关信息，请告诉我”没有相关信息“
+
+问题：
+"""
+{question}
+"""'''
+
+surfix = st.text_input(label="字段后缀", value="")
 models = list_llm_models()
 model = st.sidebar.selectbox('选择模型类型', models, index=models.index(DEFAULT_MODEL))
 
@@ -54,7 +71,13 @@ chat_kwargs = dict(temperature=temperature)
 if use_kb:
 
     top_k = st.sidebar.number_input('召回数', value=DEFAULT_TOP_K, min_value=1, max_value=10, step=1)
+    do_expand = st.sidebar.checkbox('上下文扩展', value=True)
+    if do_expand:
+        expand_len = st.sidebar.number_input('扩展长度', value=DEFAULT_EXPAND_LEN, min_value=1, max_value=2000, step=1)
+        forward_rate = st.sidebar.slider('向下扩展比例', value=DEFAULT_FORWARD_RATE, min_value=0.0, max_value=1., step=0.01)
+        chat_kwargs.update(expand_len=expand_len, forward_rate=forward_rate, do_expand=do_expand)
     chat_kwargs.update(top_k=top_k)
+    kb_prompt_template = st.sidebar.text_area('prompt模板', value=DEFAULT_KB_PROMPT_TEMPLATE, height=150)
 
 
 else:
@@ -68,7 +91,7 @@ uploaded_file, records, columns = load_upload_table()
 
 
 def load_batch_view(get_resp_func, records, columns, file_name,
-                    workers=1, save_interval=None, overwrite=False, max_num=100, require_keys=None):
+                    workers=1, max_num=100, require_keys=None):
     # 保存文件函数
     def save_file():
         dst_file_name = f"{stem}_{idx}_{len(records)}_{datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')}.{surfix}"
@@ -105,8 +128,10 @@ def load_batch_view(get_resp_func, records, columns, file_name,
         # item = results[idx]
         idx += 1
         cost = time.time() - start
+        cost_per_item = cost/idx
         pct = (idx)/len(records)
-        text = f"{cost/idx:.2f}s/item, [{idx}/{len(records)}], [{cost:.2f}s/{cost/pct:.2f}s]"
+        remain = cost_per_item * (len(records)-idx)
+        text = f"[进度:{pct:.2%} {idx}/{len(records)}][平均{cost_per_item:.2f}秒/条][耗时{cost:.2f}秒][剩余{remain:.2f}秒]"
         st.progress(value=pct, text=text)
         # st.info(f"question:{item['question']}")
         for k, v in item.items():
@@ -122,9 +147,13 @@ def get_resp_func(item):
     llm_config = dict(model_cls=model, name=model, version=version)
     memory_config = dict(size=10)
 
-    agent = XAgent(name="tmp_batch_agent", llm_config=llm_config, memory_config=memory_config, kb_name=kb_name)
-    resp: AgentResp = agent.chat(message=prompt, stream=False, do_remember=False, use_kb=True)
-    item.update(**resp.model_dump(mode="json"))
+    agent = XAgent(name="tmp_batch_agent", llm_config=llm_config,
+                   memory_config=memory_config, kb_name=kb_name,
+                   kb_prompt_template=kb_prompt_template)
+    resp: AgentResp = agent.chat(message=prompt, stream=False, do_remember=False, use_kb=True, **chat_kwargs)
+
+    item[f"answer_{surfix}" if surfix else "answer"] = resp.message
+    item[f"recall{surfix}" if surfix else "recall"] = jdumps(resp.references)
 
     rt = dict(question=item['question'], answer=resp.message)
     if "gold_answer" in item:

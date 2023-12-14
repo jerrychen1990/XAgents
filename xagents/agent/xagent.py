@@ -17,7 +17,6 @@ from xagents.model import get_llm_model
 from xagents.memory import BaseMemory
 from xagents.util import get_log
 
-from snippets import log_cost_time
 
 logger = get_log(__name__)
 
@@ -38,7 +37,6 @@ class XAgent(AbstractAgent):
             self.kb = None
         self.kb_prompt_template = kb_prompt_template
 
-    @log_cost_time("search kb")
     def search_kb(self, query: str, **kwargs) -> List[RecalledChunk]:
         assert self.kb
         chunks = self.kb.search(query=query, **kwargs)
