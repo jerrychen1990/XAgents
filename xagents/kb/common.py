@@ -89,13 +89,13 @@ class RecalledChunk(KBChunk):
         detail_text = f"[score={self.score:2.3f}][{main_len}字][扩展后{backword_len+main_len+forwards_len}字][类型{self.content_type.value}][index:{self.idx}] **{self.content}**"
 
         if backword_len:
-            backwords_str = "\n\n".join([f"[back{idx+1}]{chunk.content}" for idx, chunk in enumerate(self.backwards)])
-            backwords_str = f"上文：[{backword_len}]字\\nn{backwords_str}"
+            backwords_str = "\n\n".join([f"{chunk.content}" for idx, chunk in enumerate(self.backwards)])
+            backwords_str = f"上文[{backword_len}]字\n\n{backwords_str}"
             detail_text = backwords_str + "\n\n"+detail_text
 
         if forwards_len:
-            forwards_str = "\n\n".join([f"[back{idx+1}]{chunk.content}" for idx, chunk in enumerate(self.forwards)])
-            forwards_str = f"下文：[{forwards_len}]字\n\n{forwards_str}"
+            forwards_str = "\n\n".join([f"{chunk.content}" for idx, chunk in enumerate(self.forwards)])
+            forwards_str = f"下文[{forwards_len}]字\n\n{forwards_str}"
 
             detail_text = detail_text+"\n\n"+forwards_str
         logger.debug(f"{detail_text=}")

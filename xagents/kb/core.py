@@ -244,13 +244,15 @@ class KnwoledgeBase:
 
 def split_query(query: str, do_split_query=False) -> List[str]:
     if do_split_query:
-        return re.split("\?？", query)
+        rs = [e.strip() for e in re.split("\?|？", query) if e.strip()]
+        return rs
     else:
         return [query]
 
 
 # 扩展上下文到给定的长度
 def expand_chunk(chunk: RecalledChunk, expand_len: int, forward_rate=0.5) -> RecalledChunk:
+    logger.debug(f"expanding chunk {chunk}")
     chunk_path = get_chunk_path(chunk.kb_name, chunk.file_name)
     chunks = []
     for item in read2list(chunk_path):
@@ -264,7 +266,7 @@ def expand_chunk(chunk: RecalledChunk, expand_len: int, forward_rate=0.5) -> Rec
 
     forward_len = int(to_expand * forward_rate)
     backward_len = to_expand - forward_len
-    logger.debug(f"epand chunk with :{forward_len=}, {backward_len=}")
+    logger.debug(f"epxand chunk with :{forward_len=}, {backward_len=}")
     backwards, forwards = [], []
 
     # 查找前面的chunk

@@ -15,6 +15,7 @@ from xagents.agent.core import AgentResp
 from xagents.agent.xagent import XAgent
 from xagents.model import list_llm_models
 from xagents.util import get_log
+from web.config import *
 
 logger = get_log(__name__)
 
@@ -34,60 +35,61 @@ def load_upload_table(label="上传文件，xlsx,csv类型"):
     return uploaded_file, None, None
 
 
-DEFAULT_MODEL = "GLM"
-DEFAULT_KB = "guizhoumaotai"
-DEFAULT_TEMPERATURE = 0.01
-DEFAULT_TOP_K = 3
-DEFAULT_EXPAND_LEN = 500
-DEFAULT_FORWARD_RATE = 0.5
-DEFAULT_KB_PROMPT_TEMPLATE = '''
-有如下的年报信息：
+def load_view():
 
-"""
-{reference}
-"""
+    surfix = st.text_input(label="字段后缀", value="")
+    models = list_llm_models()
+    model = st.sidebar.selectbox('选择模型类型', models, index=models.index(DEFAULT_MODEL))
 
-使用上述年报信息，回答下方问题，你所需要的全部内容都在年报信息中。
-如果没有找到相关信息，请告诉我”没有相关信息“
+    versions = ["chatglm_66b", "chatglm_turbo"]
+    version = st.sidebar.selectbox('选择模型版本', versions, index=0)
+    temperature = st.sidebar.number_input('设置温度', value=DEFAULT_TEMPERATURE, min_value=0.01, max_value=1.0, step=0.01)
 
-问题：
-"""
-{question}
-"""'''
+    use_kb = st.sidebar.checkbox('使用知识库', value=True)
 
-surfix = st.text_input(label="字段后缀", value="")
-models = list_llm_models()
-model = st.sidebar.selectbox('选择模型类型', models, index=models.index(DEFAULT_MODEL))
+    chat_kwargs = dict(temperature=temperature)
 
-versions = ["chatglm_66b", "chatglm_turbo"]
-version = st.sidebar.selectbox('选择模型版本', versions, index=0)
-temperature = st.sidebar.number_input('设置温度', value=DEFAULT_TEMPERATURE, min_value=0.01, max_value=1.0, step=0.01)
+    if use_kb:
 
+        top_k = st.sidebar.number_input('召回数', value=DEFAULT_TOP_K, min_value=1, max_value=10, step=1)
+        do_split_query = st.sidebar.checkbox('查询语句分句', value=True)
+        do_expand = st.sidebar.checkbox('上下文扩展', value=True)
+        if do_expand:
+            expand_len = st.sidebar.number_input('扩展长度', value=DEFAULT_EXPAND_LEN, min_value=1, max_value=2000, step=1)
+            forward_rate = st.sidebar.slider('向下扩展比例', value=DEFAULT_FORWARD_RATE, min_value=0.0, max_value=1., step=0.01)
+            chat_kwargs.update(expand_len=expand_len, forward_rate=forward_rate, do_expand=do_expand)
 
-use_kb = st.sidebar.checkbox('使用知识库', value=True)
+        chat_kwargs.update(top_k=top_k, do_split_query=do_split_query)
+        kb_prompt_template = st.sidebar.text_area('prompt模板', value=DEFAULT_KB_PROMPT_TEMPLATE, height=150)
 
-chat_kwargs = dict(temperature=temperature)
+    work_num = st.sidebar.number_input(
+        key="work_num", label="并发数", min_value=1, max_value=10, value=1, step=1)
 
-if use_kb:
+    uploaded_file, records, columns = load_upload_table()
 
-    top_k = st.sidebar.number_input('召回数', value=DEFAULT_TOP_K, min_value=1, max_value=10, step=1)
-    do_expand = st.sidebar.checkbox('上下文扩展', value=True)
-    if do_expand:
-        expand_len = st.sidebar.number_input('扩展长度', value=DEFAULT_EXPAND_LEN, min_value=1, max_value=2000, step=1)
-        forward_rate = st.sidebar.slider('向下扩展比例', value=DEFAULT_FORWARD_RATE, min_value=0.0, max_value=1., step=0.01)
-        chat_kwargs.update(expand_len=expand_len, forward_rate=forward_rate, do_expand=do_expand)
-    chat_kwargs.update(top_k=top_k)
-    kb_prompt_template = st.sidebar.text_area('prompt模板', value=DEFAULT_KB_PROMPT_TEMPLATE, height=150)
+    def get_resp_func(item):
+        prompt = item["question"]
+        kb_name = item["kb_name"]
+        llm_config = dict(model_cls=model, name=model, version=version)
+        memory_config = dict(size=10)
 
+        agent = XAgent(name="tmp_batch_agent", llm_config=llm_config,
+                       memory_config=memory_config, kb_name=kb_name,
+                       kb_prompt_template=kb_prompt_template)
+        resp: AgentResp = agent.chat(message=prompt, stream=False, do_remember=False, use_kb=True, **chat_kwargs)
 
-else:
-    kb_name = None
+        item[f"answer_{surfix}" if surfix else "answer"] = resp.message
+        item[f"recall_{surfix}" if surfix else "recall"] = jdumps(resp.references)
 
+        rt = dict(question=item['question'], answer=resp.message)
+        if "gold_answer" in item:
+            rt.update(gold_answer=item["gold_answer"])
+        return rt
 
-work_num = st.sidebar.number_input(
-    key="work_num", label="并发数", min_value=1, max_value=10, value=1, step=1)
-
-uploaded_file, records, columns = load_upload_table()
+    submit = st.button(label="提交")
+    if submit:
+        load_batch_view(get_resp_func=get_resp_func, records=records, columns=columns, file_name=uploaded_file.name,
+                        workers=work_num, require_keys=None)
 
 
 def load_batch_view(get_resp_func, records, columns, file_name,
@@ -139,29 +141,3 @@ def load_batch_view(get_resp_func, records, columns, file_name,
 
     save_file()
     st.markdown("任务完成")
-
-
-def get_resp_func(item):
-    prompt = item["question"]
-    kb_name = item["kb_name"]
-    llm_config = dict(model_cls=model, name=model, version=version)
-    memory_config = dict(size=10)
-
-    agent = XAgent(name="tmp_batch_agent", llm_config=llm_config,
-                   memory_config=memory_config, kb_name=kb_name,
-                   kb_prompt_template=kb_prompt_template)
-    resp: AgentResp = agent.chat(message=prompt, stream=False, do_remember=False, use_kb=True, **chat_kwargs)
-
-    item[f"answer_{surfix}" if surfix else "answer"] = resp.message
-    item[f"recall{surfix}" if surfix else "recall"] = jdumps(resp.references)
-
-    rt = dict(question=item['question'], answer=resp.message)
-    if "gold_answer" in item:
-        rt.update(gold_answer=item["gold_answer"])
-    return rt
-
-
-submit = st.button(label="提交")
-if submit:
-    load_batch_view(get_resp_func=get_resp_func, records=records, columns=columns, file_name=uploaded_file.name,
-                    workers=work_num, require_keys=None)

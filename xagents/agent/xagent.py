@@ -44,19 +44,24 @@ class XAgent(AbstractAgent):
 
     def chat(self, message: str, stream=True, do_remember=True,
              use_kb=False, top_k=3, score_threshold=None, temperature=0.01,
+             do_split_query=False, fake_chat=False,
              do_expand=False, expand_len: int = 500, forward_rate: float = 0.5, **kwargs) -> AgentResp:
         if use_kb:
-            chunks = self.search_kb(query=message, top_k=top_k, score_threshold=score_threshold,
+            chunks = self.search_kb(query=message, top_k=top_k, score_threshold=score_threshold, do_split_query=do_split_query,
                                     do_expand=do_expand, expand_len=expand_len, forward_rate=forward_rate)
-            reference = "\n\n".join(f"{idx+1}." + c.to_plain_text() for idx, c in enumerate(chunks))
+            reference = "\n".join(f"{idx+1}." + c.to_plain_text() for idx, c in enumerate(chunks))
             logger.debug(f"{reference=}")
             prompt = self.kb_prompt_template.format(question=message, reference=reference)
         else:
             prompt = message
             chunks = None
 
-        model_resp = self.llm_model.generate(prompt=prompt, history=self.memory.to_llm_history(),
-                                             temperature=temperature, stream=stream, **kwargs)
+        if fake_chat:
+            fake_resp = "这是MOCK的回答信息,如果需要真实回答,请设置fake_chat=False"
+            model_resp = (e for e in fake_resp) if stream else fake_resp
+        else:
+            model_resp = self.llm_model.generate(prompt=prompt, history=self.memory.to_llm_history(),
+                                                 temperature=temperature, stream=stream, **kwargs)
 
         def _remember_callback(resp_str):
             if do_remember:

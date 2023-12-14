@@ -163,3 +163,4 @@ knowledge_base
 data/
 tmp
 *.ipynb
+.DS_Store
