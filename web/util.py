@@ -21,7 +21,7 @@ def get_default_idx(options, default_value):
 def load_kb_options(st, default_use_kb=True):
     chat_kwargs = dict()
     use_kb = st.checkbox('使用知识库', value=default_use_kb)
-    kb_name, kb_prompt_template, chat_kwargs = None, None, None
+    kb_name, kb_prompt_template = None, None
 
     if use_kb:
         kb_names = list_knowledge_base_names()
