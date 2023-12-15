@@ -105,24 +105,28 @@ def load_view():
         question_label = right.selectbox(label="类型", options=qustion_labels, index=index)
 
         # with st.expander("recall"):
-        gold_recall = left.text_area(label="gold_recall", value=item.get('gold_recall', ''), height=250)
-        to_update["gold_recall"] = gold_recall
+        left.text_area(label="gold_recall", key="gold_recall", value=item.get('gold_recall', ''), height=250)
 
         recall_value = get_recall_str(item, f'recall_{day}')
         right.text_area(label="recall", value=recall_value, height=250)
 
-        gold_answer = left.text_area(label="gold answer", value=item.get('gold_answer', ''), height=150)
+        gold_answer = left.text_area(label="gold answer",  value=item.get('gold_answer', ''), height=150)
         to_update["gold_answer"] = gold_answer
 
         right.text_area(label="answer", value=item.get(f'answer_{day}', ""), height=150)
 
-        score_options = [0, 0.5, 1]
+        score_options = [0., 0.5, 1.]
         # index = score_options.index(item.get("recall_score", 0))
 
         # recall_score = left.selectbox(label="recall score", options=[0, 0.5, 1], index=index, format_func=fmt_func)
 
-        index = score_options.index(item.get("answer_score_{day}", 0))
-        answer_score = left.selectbox(label="answer_score", options=[0, 0.5, 1], index=index, format_func=fmt_func)
+        if item.get("answer_score_{day}"):
+            origin_score = float(item[f"answer_score_{day}"])
+        else:
+            origin_score = 0.
+        # logger.info(f"{origin_score=}")
+        index = score_options.index(origin_score)
+        answer_score = left.selectbox(label="answer_score", options=score_options, index=index, format_func=fmt_func)
 
         # recall_score =  left.number_input(label="recall score",min_value=0, max_value=10, step=1, value=item.get("recall_score", 0))
         # answer_score = right.number_input(label="answer score",min_value=0, max_value=10, step=1, value=item.get("answer_score", 0))
@@ -131,14 +135,21 @@ def load_view():
         label = item.get("analyse_label", "其他")
         idx = analyse_labels.index(label) if label in analyse_labels else 0
 
-        analyse_label = left.selectbox(label="category", options=analyse_labels, index=0)
+        analyse_label = left.selectbox(label="category", options=analyse_labels, index=idx)
 
         comment = right.text_area(label="comment", value=item.get("comment", ""), height=50)
 
-        to_update.update(answer_score=answer_score, analyse_label=analyse_label, comment=comment, question_label=question_label)
+        gold_recall = st.session_state["gold_recall"]
+        logger.info(f"{gold_recall=}")
+        to_update["gold_recall"] = gold_recall
+
+        to_update.update(analyse_label=analyse_label, comment=comment, question_label=question_label)
+        logger.info(f"{to_update=}")
         item.update(**to_update)
 
-        st.info(item)
+        item[f"answer_score_{day}"] = answer_score
+
+        # st.info(item)
 
     def on_next():
         logger.info("on next")

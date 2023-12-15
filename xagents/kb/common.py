@@ -62,8 +62,8 @@ class KBChunk(Chunk):
 class RecalledChunk(KBChunk):
     query: str = Field(description="召回chunk的query")
     score: float = Field(description="召回chunk的分数")
-    forwards: List[KBChunk] = Field(description="chunk的下文扩展", default=[])
-    backwards: List[KBChunk] = Field(description="chunk的上文扩展", default=[])
+    forwards: List[Chunk] = Field(description="chunk的下文扩展", default=[])
+    backwards: List[Chunk] = Field(description="chunk的上文扩展", default=[])
 
     @classmethod
     def from_document(cls, document: Document, query: str, score: float):
