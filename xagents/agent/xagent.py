@@ -38,7 +38,9 @@ class XAgent(AbstractAgent):
         self.kb_prompt_template = kb_prompt_template
 
     def search_kb(self, query: str, **kwargs) -> List[RecalledChunk]:
-        assert self.kb
+        if not self.kb:
+            logger.warning('No knowledge base found! Will return empty recall chunks')
+            return []
         chunks = self.kb.search(query=query, **kwargs)
         return chunks
 

@@ -20,7 +20,8 @@ logger = get_log(__name__)
 
 def load_view():
     model, version, chat_kwargs = load_model_options(st.sidebar)
-    use_kb, kb_name, kb_prompt_template, chat_kwargs = load_kb_options(st.sidebar, default_use_kb=True)
+    use_kb, kb_name, kb_prompt_template, _chat_kwargs = load_kb_options(st.sidebar, default_use_kb=True)
+    chat_kwargs.update(**_chat_kwargs)
 
     def get_agent():
         agent = st.session_state.get("agent")

@@ -50,14 +50,14 @@ def load_view():
 
     def get_resp_func(item):
         prompt = item["question"]
-        kb_name = item["kb_name"]
+        _kb_name = item.get("kb_name", kb_name)
         llm_config = dict(model_cls=model, name=model, version=version)
         memory_config = dict(size=10)
 
         agent = XAgent(name="tmp_batch_agent", llm_config=llm_config,
-                       memory_config=memory_config, kb_name=kb_name,
+                       memory_config=memory_config, kb_name=_kb_name,
                        kb_prompt_template=kb_prompt_template)
-        resp: AgentResp = agent.chat(message=prompt, stream=False, do_remember=False, use_kb=True, **chat_kwargs)
+        resp: AgentResp = agent.chat(message=prompt, stream=False, do_remember=False, use_kb=use_kb, **chat_kwargs)
 
         item[f"answer_{surfix}" if surfix else "answer"] = resp.message
         item[f"recall_{surfix}" if surfix else "recall"] = jdumps(resp.references)
