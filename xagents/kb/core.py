@@ -16,7 +16,7 @@ from xagents.kb.vector_store import get_vecstore_cls, VectorStore
 from xagents.kb.loader import load_file
 from xagents.kb.splitter import AbstractSplitter
 from xagents.kb.common import *
-from xagents.model import EMBD, get_embd_model
+from xagents.model.service import EMBD, get_embd_model
 from langchain_core.documents import Document
 from langchain.vectorstores.utils import DistanceStrategy
 
@@ -37,8 +37,7 @@ def get_origin_path(kb_name, file_name) -> str:
 
 
 class KnwoledgeBaseFile:
-    def __init__(self, kb_name: str,
-                 origin_file_path: str):
+    def __init__(self, kb_name: str, origin_file_path: str):
         self.kb_name = kb_name
         self.file_name = os.path.basename(origin_file_path)
         self.stem, self.suffix = os.path.splitext(self.file_name)
@@ -177,6 +176,9 @@ class KnwoledgeBase:
         kb_file = KnwoledgeBaseFile(kb_name=self.name, origin_file_path=file_path)
         self.add_kb_file(kb_file, splitter=splitter)
 
+    def list_files(self) -> List[KnwoledgeBaseFile]:
+        return self.kb_files
+
     def remove_file(self, kb_file: Union[KnwoledgeBaseFile, str]):
         if isinstance(kb_file, str):
             kb_file = self._get_kb_file_by_name(kb_file)
@@ -191,6 +193,9 @@ class KnwoledgeBase:
         logger.info(f"deleting kb:{self.name}")
         shutil.rmtree(path=self.kb_dir)
         logger.info(f"{self.name} deleted")
+
+    def save(self):
+        pass
 
     @log_cost_time(name="rebuild vectstore")
     def rebuild(self, re_parse=False):

@@ -22,5 +22,9 @@ class LLM:
                  temperature=0.01, **kwargs):
         raise NotImplementedError
 
+    @classmethod
+    def list_version(cls):
+        raise NotImplementedError
+
 
 EMBD = Embeddings

@@ -13,7 +13,7 @@ from snippets import dump_list, batch_process, jdumps
 from xagents.config import *
 from xagents.agent.core import AgentResp
 from xagents.agent.xagent import XAgent
-from xagents.model import list_llm_models
+from xagents.model.service import list_llm_models
 from xagents.util import get_log
 from web.config import *
 
@@ -37,7 +37,8 @@ def load_upload_table(label="上传文件，xlsx,csv类型"):
 
 def load_view():
 
-    surfix = st.text_input(label="字段后缀", value="")
+    surfix = ""
+    # surfix = st.text_input(label="字段后缀", value="")
     models = list_llm_models()
     model = st.sidebar.selectbox('选择模型类型', models, index=models.index(DEFAULT_MODEL))
 

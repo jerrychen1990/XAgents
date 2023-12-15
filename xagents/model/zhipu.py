@@ -20,6 +20,25 @@ class GLM(LLM):
         super().__init__(name, version)
         self.api_key = api_key
 
+    @classmethod
+    def list_versions(cls):
+        return [
+            "chatglm3_32b_alpha",
+            "chatglm3",
+            "chatglm3_130b_int8",
+            "chatglm3_130b_int4",
+            "chatglm_turbo",
+            "chatglm2_edge",
+            "chatglm2_12b_32k",
+            "chatglm_lite",
+            "chatglm_std",
+            "chatglm_pro",
+            "chatglm_6b",
+            "chatglm_12b",
+            "chatglm_66b",
+            "chatglm_130b"
+        ]
+
     def generate(self, prompt, history=[], system=None, stream=True, temperature=0.01, **kwargs):
         logger.info(f"{self.__class__} generating resp with {prompt=}, {history=}")
 

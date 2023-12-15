@@ -12,18 +12,18 @@ from xagents.agent.core import AgentResp
 from xagents.agent.xagent import XAgent
 from xagents.kb.service import list_knowledge_base_names
 
-from xagents.model import list_llm_models
+from xagents.model.service import list_llm_models, list_llm_versions
 from xagents.util import get_log
 from web.config import *
 
 logger = get_log(__name__)
 
+models = list_llm_models()
+
 
 def load_view():
-    models = list_llm_models()
     model = st.sidebar.selectbox('选择模型类型', models, index=models.index(DEFAULT_MODEL))
-
-    versions = ["chatglm_66b", "chatglm_turbo"]
+    versions = list_llm_versions(model)
     version = st.sidebar.selectbox('选择模型版本', versions, index=0)
     temperature = st.sidebar.number_input('设置温度', value=DEFAULT_TEMPERATURE, min_value=0.01, max_value=1.0, step=0.01)
 

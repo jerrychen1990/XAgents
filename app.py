@@ -8,19 +8,21 @@
 '''
 
 
+from web import agent_web, analyse_web, batch_agent, similarity, kb_web
 import streamlit as st
-from web import agent_web, analyse_web, batch_agent
+st.set_page_config(layout="wide", page_title='XAgent')
 
-st.set_page_config(layout="wide", page_title='AI工具集合')
 
-_VIEWS = [agent_web, analyse_web, batch_agent]
+_VIEWS = [agent_web, batch_agent, kb_web, analyse_web, similarity]
 _VIEW_MAP = {e.__name__: e for e in _VIEWS}
 
 
 NAVBAR_PATHS = {
-    "Agent对话": "web.agent_web",
+    "Agent问答": "web.agent_web",
+    "批量测评": "web.batch_agent",
+    "知识库管理": "web.kb_web",
     "结果分析": "web.analyse_web",
-    "批量测评": "web.batch_agent"
+    "相似度计算": "web.similarity"
 }
 
 

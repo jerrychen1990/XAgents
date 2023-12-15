@@ -13,7 +13,7 @@ from xagents.agent.core import AbstractAgent, AgentResp
 from xagents.config import DEFAULT_KB_PROMPT_TEMPLATE
 from xagents.kb.common import RecalledChunk
 from xagents.kb.service import get_knowledge_base
-from xagents.model import get_llm_model
+from xagents.model.service import get_llm_model
 from xagents.memory import BaseMemory
 from xagents.util import get_log
 

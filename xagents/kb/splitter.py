@@ -20,7 +20,7 @@ logger = DEFAULT_LOG
 
 
 class AbstractSplitter:
-    def __init__(self, invalid_chunks: List[str]):
+    def __init__(self, invalid_chunks: List[str] = []):
         self.invalid_chunks = invalid_chunks
 
     @abstractmethod
