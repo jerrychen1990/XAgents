@@ -10,10 +10,10 @@ import time
 import streamlit as st
 import pandas as pd
 from snippets import dump_list, batch_process, jdumps
+from web.util import load_kb_options, load_model_options
 from xagents.config import *
 from xagents.agent.core import AgentResp
 from xagents.agent.xagent import XAgent
-from xagents.model.service import list_llm_models
 from xagents.util import get_log
 from web.config import *
 
@@ -39,29 +39,9 @@ def load_view():
 
     surfix = ""
     # surfix = st.text_input(label="字段后缀", value="")
-    models = list_llm_models()
-    model = st.sidebar.selectbox('选择模型类型', models, index=models.index(DEFAULT_MODEL))
-
-    versions = ["chatglm_66b", "chatglm_turbo"]
-    version = st.sidebar.selectbox('选择模型版本', versions, index=0)
-    temperature = st.sidebar.number_input('设置温度', value=DEFAULT_TEMPERATURE, min_value=0.01, max_value=1.0, step=0.01)
-
-    use_kb = st.sidebar.checkbox('使用知识库', value=True)
-
-    chat_kwargs = dict(temperature=temperature)
-
-    if use_kb:
-
-        top_k = st.sidebar.number_input('召回数', value=DEFAULT_TOP_K, min_value=1, max_value=10, step=1)
-        do_split_query = st.sidebar.checkbox('查询语句分句', value=True)
-        do_expand = st.sidebar.checkbox('上下文扩展', value=True)
-        if do_expand:
-            expand_len = st.sidebar.number_input('扩展长度', value=DEFAULT_EXPAND_LEN, min_value=1, max_value=2000, step=1)
-            forward_rate = st.sidebar.slider('向下扩展比例', value=DEFAULT_FORWARD_RATE, min_value=0.0, max_value=1., step=0.01)
-            chat_kwargs.update(expand_len=expand_len, forward_rate=forward_rate, do_expand=do_expand)
-
-        chat_kwargs.update(top_k=top_k, do_split_query=do_split_query)
-        kb_prompt_template = st.sidebar.text_area('prompt模板', value=DEFAULT_KB_PROMPT_TEMPLATE, height=150)
+    model, version, chat_kwargs = load_model_options(st.sidebar)
+    use_kb, kb_name, kb_prompt_template, _chat_kwargs = load_kb_options(st.sidebar, default_use_kb=True)
+    chat_kwargs.update(**_chat_kwargs)
 
     work_num = st.sidebar.number_input(
         key="work_num", label="并发数", min_value=1, max_value=10, value=1, step=1)

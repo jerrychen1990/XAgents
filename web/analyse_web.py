@@ -9,6 +9,7 @@
 import os
 import streamlit as st
 import pandas as pd
+from web.util import get_default_idx
 from xagents.config import TEMP_DIR
 from xagents.kb.common import RecalledChunk
 from xagents.util import get_log
@@ -100,8 +101,7 @@ def load_view():
         question_label = item.get('question_label', '其他')
         logger.info(f"{question_label=}")
 
-        index = qustion_labels.index(question_label) if question_label in qustion_labels else 0
-
+        index = get_default_idx(qustion_labels, question_label)
         question_label = right.selectbox(label="类型", options=qustion_labels, index=index)
 
         # with st.expander("recall"):
@@ -125,7 +125,7 @@ def load_view():
         else:
             origin_score = 0.
         # logger.info(f"{origin_score=}")
-        index = score_options.index(origin_score)
+        index = get_default_idx(score_options, origin_score)
         answer_score = left.selectbox(label="answer_score", options=score_options, index=index, format_func=fmt_func)
 
         # recall_score =  left.number_input(label="recall score",min_value=0, max_value=10, step=1, value=item.get("recall_score", 0))
@@ -133,8 +133,7 @@ def load_view():
 
         analyse_labels = ["其他", "召回错误", "答案有问题", "模型幻觉", "计算错误", "回答不完整", "答非所问"]
         label = item.get("analyse_label", "其他")
-        idx = analyse_labels.index(label) if label in analyse_labels else 0
-
+        idx = get_default_idx(analyse_labels, label)
         analyse_label = left.selectbox(label="category", options=analyse_labels, index=idx)
 
         comment = right.text_area(label="comment", value=item.get("comment", ""), height=50)

@@ -36,21 +36,21 @@ def new_kb_page(kb_names, vs_names, embd_names, distance_strategys):
         vs_type = vec_col.selectbox(
             "向量库类型",
             vs_names,
-            index=vs_names.index(DEFAULT_VS_TYPE),
+            index=get_default_idx(vs_names, DEFAULT_VS_TYPE),
             key="vs_type",
         )
 
         embd_model = embd_col.selectbox(
             "向量模型",
             embd_names,
-            index=embd_names.index(DEFAULT_EMBD_MODEL),
+            index=get_default_idx(embd_names, DEFAULT_EMBD_MODEL),
             key="embd_model",
         )
 
         distance_strategy = distance_col.selectbox(
             "距离度量",
             distance_strategys,
-            index=distance_strategys.index(DEFAULT_DISTANCE_STRATEGY),
+            index=get_default_idx(distance_strategys, DEFAULT_DISTANCE_STRATEGY),
             key="distance_strategy",
         )
         submit_create_kb = st.form_submit_button(

@@ -14,8 +14,13 @@ XAGENT_HOME = os.path.dirname(os.path.dirname(__file__))
 
 
 KNOWLEDGE_BASE_DIR = os.environ.get("XAGENT_KNOWLEDGE_BASE_DIR", os.path.join(XAGENT_HOME, "knowledge_base"))
+os.makedirs(KNOWLEDGE_BASE_DIR, exist_ok=True)
+
 TEMP_DIR = os.environ.get("XAGENT_TEMP_DIR", os.path.join(XAGENT_HOME, "tmp"))
+os.makedirs(TEMP_DIR, exist_ok=True)
+
 LOG_DIR = os.environ.get("XAGENT_LOG_DIR", os.path.join(XAGENT_HOME, "log"))
+os.makedirs(LOG_DIR, exist_ok=True)
 
 
 logger = getlog("dev", __file__)

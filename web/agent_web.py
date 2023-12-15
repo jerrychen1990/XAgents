@@ -8,47 +8,19 @@
 
 
 import streamlit as st
+from web.util import load_model_options, load_kb_options
 from xagents.agent.core import AgentResp
 from xagents.agent.xagent import XAgent
-from xagents.kb.service import list_knowledge_base_names
 
-from xagents.model.service import list_llm_models, list_llm_versions
 from xagents.util import get_log
 from web.config import *
 
 logger = get_log(__name__)
 
-models = list_llm_models()
-
 
 def load_view():
-    model = st.sidebar.selectbox('选择模型类型', models, index=models.index(DEFAULT_MODEL))
-    versions = list_llm_versions(model)
-    version = st.sidebar.selectbox('选择模型版本', versions, index=0)
-    temperature = st.sidebar.number_input('设置温度', value=DEFAULT_TEMPERATURE, min_value=0.01, max_value=1.0, step=0.01)
-
-    use_kb = st.sidebar.checkbox('使用知识库', value=True)
-
-    chat_kwargs = dict(temperature=temperature)
-    kb_prompt_template = None
-
-    if use_kb:
-        kb_names = list_knowledge_base_names()
-        kb_name = st.sidebar.selectbox('选择知识库', kb_names, index=kb_names.index(DEFAULT_KB))
-        top_k = st.sidebar.number_input('召回数', value=DEFAULT_TOP_K, min_value=1, max_value=10, step=1)
-        do_expand = st.sidebar.checkbox('上下文扩展', value=True)
-        kb_prompt_template = st.sidebar.text_area('prompt模板', value=DEFAULT_KB_PROMPT_TEMPLATE, height=150)
-        do_split_query = st.sidebar.checkbox('查询语句分句', value=True)
-        chat_kwargs.update(top_k=top_k, do_expand=do_expand, do_split_query=do_split_query)
-
-        if do_expand:
-            expand_len = st.sidebar.number_input('扩展长度', value=DEFAULT_EXPAND_LEN, min_value=1, max_value=2000, step=1)
-            forward_rate = st.sidebar.slider('向下扩展比例', value=DEFAULT_FORWARD_RATE, min_value=0.0, max_value=1., step=0.01)
-
-            chat_kwargs.update(expand_len=expand_len, forward_rate=forward_rate)
-
-    else:
-        kb_name = None
+    model, version, chat_kwargs = load_model_options(st.sidebar)
+    use_kb, kb_name, kb_prompt_template, chat_kwargs = load_kb_options(st.sidebar, default_use_kb=True)
 
     def get_agent():
         agent = st.session_state.get("agent")
