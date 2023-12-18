@@ -25,7 +25,7 @@ DEFAULT_KB_PROMPT_TEMPLATE = '''
 有如下的年报信息：
 
 """
-{reference}
+{context}
 """
 
 使用上述年报信息，回答下方问题，你所需要的全部内容都在年报信息中。

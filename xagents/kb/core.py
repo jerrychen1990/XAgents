@@ -11,8 +11,8 @@ import re
 from typing import List, Union
 from xagents.config import *
 import shutil
-from snippets import jdump_lines, jload_lines, log_cost_time, read2list
-from xagents.kb.vector_store import get_vecstore_cls, VectorStore
+from snippets import jdump_lines, jload_lines, log_cost_time, read2list, jdump, jload
+from xagents.kb.vector_store import XVecStore, get_vector_store
 from xagents.kb.loader import load_file
 from xagents.kb.splitter import AbstractSplitter
 from xagents.kb.common import *
@@ -34,6 +34,10 @@ def get_chunk_path(kb_name, file_name) -> str:
 
 def get_origin_path(kb_name, file_name) -> str:
     return os.path.join(get_kb_dir(kb_name), "origin", file_name)
+
+
+def get_config_path(kb_name) -> str:
+    return os.path.join(get_kb_dir(kb_name), "config.json")
 
 
 class KnwoledgeBaseFile:
@@ -106,19 +110,29 @@ class KnwoledgeBase:
     def __init__(self, name: str,
                  embedding_config: dict,
                  description=None,
-                 vecstore_cls: str = "FAISS",
+                 vecstore_config: str = dict(vs_cls="FAISS"),
                  distance_strategy: DistanceStrategy = DistanceStrategy.MAX_INNER_PRODUCT
                  ) -> None:
         self.name = name
         self.description = description if description else f"{self.name}知识库"
         self._build_dirs()
+        self.conf = dict(name=name, embedding_config=embedding_config, description=description,
+                         vecstore_config=vecstore_config, distance_strategy=distance_strategy)
 
         self.embd_model: EMBD = get_embd_model(embedding_config)
 
         self.kb_files: List[KnwoledgeBaseFile] = self._load_kb_files()
         self.distance_strategy = distance_strategy
-        self.vecstore_cls = get_vecstore_cls(vecstore_cls)
-        self.vecstore = self._load_vecstore()
+
+        self.vecstore: XVecStore = get_vector_store(vecstore_config, embd_model=self.embd_model)
+        self._load_vecstore()
+
+    @classmethod
+    def from_config(cls, config: Union[dict, str]):
+        if isinstance(config, str):
+            config = jload(config)
+
+        return cls(**config)
 
     def _build_dirs(self):
         self.kb_dir = get_kb_dir(self.name)
@@ -126,6 +140,7 @@ class KnwoledgeBase:
 
         self.chunk_dir = os.path.join(self.kb_dir, "chunk")
         self.vecstore_path = os.path.join(self.kb_dir, "vectstore")
+        self.config_path = get_config_path(self.name)
         os.makedirs(self.origin_dir, exist_ok=True)
         os.makedirs(self.chunk_dir, exist_ok=True)
 
@@ -145,25 +160,21 @@ class KnwoledgeBase:
             kb_files.append(kb_file)
         return kb_files
 
-    def _load_vecstore(self) -> VectorStore:
-        if os.path.exists(self.vecstore_path):
+    def _load_vecstore(self) -> XVecStore:
+        if os.path.exists(self.vecstore_path) and self.vecstore.is_local():
             logger.info(f"loading vecstore from {self.vecstore_path}")
-            vecstore = self.vecstore_cls.load_local(folder_path=self.vecstore_path,
-                                                    embeddings=self.embd_model, distance_strategy=self.distance_strategy)
+            self.vecstore.load_local(folder_path=self.vecstore_path,
+                                     embeddings=self.embd_model, distance_strategy=self.distance_strategy)
         else:
             logger.info(f"{self.vecstore_path} not exists, will not load vecstore")
-            vecstore = None
-        return vecstore
 
     def _add_chunks(self, chunks: List[KBChunk]):
         logger.info(f"adding {len(chunks)} chunks to vecstore")
         documents: List[Document] = [chunk.to_document() for chunk in chunks]
-        if not self.vecstore:
-            self.vecstore = self.vecstore_cls.from_documents(documents, embedding=self.embd_model, distance_strategy=self.distance_strategy)
-        else:
-            self.vecstore.add_documents(documents, embedding=self.embd_model)
-        logger.info("storing vectors...")
-        self.vecstore.save_local(self.vecstore_path)
+        self.vecstore.add_documents(documents, embedding=self.embd_model)
+        if self.vecstore.is_local():
+            logger.info("storing vectors...")
+            self.vecstore.save_local(self.vecstore_path)
 
     def add_kb_file(self, kb_file: KnwoledgeBaseFile, splitter: AbstractSplitter):
         logger.info(f"adding {kb_file.file_name} to {self.name}")
@@ -195,7 +206,7 @@ class KnwoledgeBase:
         logger.info(f"{self.name} deleted")
 
     def save(self):
-        pass
+        jdump(self.conf, self.config_path)
 
     @log_cost_time(name="rebuild vectstore")
     def rebuild(self, re_parse=False):

@@ -7,6 +7,8 @@
 '''
 
 from typing import List
+
+import numpy as np
 from xagents.model.core import LLM, EMBD
 from agit.backend.zhipuai_bk import call_llm_api, call_embedding_api
 from snippets import batch_process
@@ -57,10 +59,15 @@ class ZhipuEmbedding(EMBD):
         logger.info(f"embedding {len(texts)} with {self.batch_size=}")
         embd_func = batch_process(work_num=self.batch_size, return_list=True)(call_embedding_api)
         embeddings = embd_func(texts, api_key=self.api_key, norm=self.norm)
+        
+        
         return embeddings
 
     def embed_query(self, text: str) -> List[float]:
         embedding = call_embedding_api(text, api_key=self.api_key, norm=self.norm)
+        if isinstance(embedding, np.ndarray):
+            embedding = embedding.tolist()
+
         return embedding
 
 

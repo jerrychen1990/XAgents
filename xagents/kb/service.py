@@ -8,7 +8,8 @@
 
 from typing import List
 from xagents.config import *
-from xagents.kb.core import KnwoledgeBase, KnwoledgeBaseFile
+from snippets.decorators import log_function_info
+from xagents.kb.core import KnwoledgeBase, KnwoledgeBaseFile, get_config_path
 from xagents.kb.loader import _EXT2LOADER
 from xagents.util import get_log
 from xagents.kb.vector_store import list_vecstores as lv
@@ -36,7 +37,9 @@ def get_knowledge_base(name: str) -> KnwoledgeBase:
     kb_names = list_knowledge_base_names()
     assert name in kb_names
     # TODO load逻辑，从数据库中获取kb信息
-    kb = KnwoledgeBase(name=name, embedding_config=dict(model_cls="ZhipuEmbedding"))
+    config_path = get_config_path(name)
+
+    kb = KnwoledgeBase.from_config(config=config_path)
     return kb
 
 
@@ -54,22 +57,20 @@ def list_spliters() -> List[str]:
     return list(e.__name__ for e in _SPLITERS)
 
 
+@log_function_info
 def create_knowledge_base(name: str, desc: str,
-                          embedding_config: dict, vecstore_cls: str = "FAISS",
+                          embedding_config: dict, vecstore_config: dict,
                           distance_strategy: DistanceStrategy = DistanceStrategy.MAX_INNER_PRODUCT
                           ):
+    logger.info(f"Creating knowledge base {name}...")
     kb_names = list_knowledge_base_names()
     if name in kb_names:
         logger.warning(f"Knowledge base {name} already exists.")
         return
     kb = KnwoledgeBase(name=name, embedding_config=embedding_config,
-                       description=desc,
-                       vecstore_cls=vecstore_cls, distance_strategy=distance_strategy)
+                       description=desc, vecstore_config=vecstore_config, distance_strategy=distance_strategy)
+    kb.save()
     return kb
-
-
-
-
 
 
 if __name__ == "__main__":

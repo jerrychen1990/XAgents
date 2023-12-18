@@ -40,6 +40,7 @@ def new_kb_page(kb_names, vs_names, embd_names, distance_strategys):
             index=get_default_idx(vs_names, DEFAULT_VS_TYPE),
             key="vs_type",
         )
+        vs_config = _get_vs_config(vs_cls=vs_type, kb_name=kb_name)
 
         embd_model = embd_col.selectbox(
             "向量模型",
@@ -71,12 +72,19 @@ def new_kb_page(kb_names, vs_names, embd_names, distance_strategys):
             embedding_config = dict(
                 model_cls=embd_model,
             )
-            create_knowledge_base(name=kb_name, desc=kb_desc, vecstore_cls=vs_type,
+            create_knowledge_base(name=kb_name, desc=kb_desc, vecstore_config=vs_config,
                                   embedding_config=embedding_config, distance_strategy=distance_strategy)
             msg = f"创建知识库{kb_name}成功"
             st.toast(msg)
             st.info(msg)
             st.rerun()
+
+
+def _get_vs_config(vs_cls, kb_name):
+    conf = dict(vs_cls=vs_cls)
+    if vs_cls == "XES":
+        conf.update(es_url="http://localhost:9200", index_name=f"{kb_name}_index")
+    return conf
 
 
 def show_knowledge_base(kb_name: str):
@@ -112,15 +120,16 @@ def show_knowledge_base(kb_name: str):
     ):
         splitter_config = dict(spliter_cls=splitter, parse_table=parse_table, splitter=cutter)
         splitter = get_splitter(splitter_config)
-        for file in files:
-            st.info(f"adding {file.name}...")
-            tmp_file_path = os.path.join(TEMP_DIR, "files", f"{file.name}")
-            os.makedirs(os.path.dirname(tmp_file_path), exist_ok=True)
-            with open(tmp_file_path, "wb") as f:
-                f.write(file.getvalue())
-            kb.add_file(tmp_file_path, splitter=splitter)
-            msg = f"添加知识库文件{file.name} success!"
-            st.toast(msg)
+        with st.spinner("添加文件中，勿刷新或关闭页面。"):
+            for file in files:
+                st.info(f"adding {file.name}...")
+                tmp_file_path = os.path.join(TEMP_DIR, "files", f"{file.name}")
+                os.makedirs(os.path.dirname(tmp_file_path), exist_ok=True)
+                with open(tmp_file_path, "wb") as f:
+                    f.write(file.getvalue())
+                kb.add_file(tmp_file_path, splitter=splitter)
+                msg = f"添加知识库文件{file.name} success!"
+                st.toast(msg)
     st.divider()
     return kb
 

@@ -51,9 +51,9 @@ class XAgent(AbstractAgent):
         if use_kb:
             chunks = self.search_kb(query=message, top_k=top_k, score_threshold=score_threshold, do_split_query=do_split_query,
                                     do_expand=do_expand, expand_len=expand_len, forward_rate=forward_rate)
-            reference = "\n".join(f"{idx+1}." + c.to_plain_text() for idx, c in enumerate(chunks))
-            logger.debug(f"{reference=}")
-            prompt = self.kb_prompt_template.format(question=message, reference=reference)
+            context = "\n".join(f"{idx+1}." + c.to_plain_text() for idx, c in enumerate(chunks))
+            logger.debug(f"{context=}")
+            prompt = self.kb_prompt_template.format(question=message, context=context)
         else:
             prompt = message
             chunks = None

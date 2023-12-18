@@ -35,7 +35,7 @@ print_info("", logger)
 
 DEFAULT_KB_PROMPT_TEMPLATE = '''请根据[参考信息]回答我的问题，如果问题不在参考信息内，请不要参考
 [参考信息]
-{reference}
+{context}
 问题
 {question}
 '''
