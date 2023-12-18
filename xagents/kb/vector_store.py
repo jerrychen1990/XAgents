@@ -7,10 +7,11 @@
 '''
 
 from langchain.vectorstores.faiss import FAISS
+from langchain.vectorstores.elasticsearch import ElasticsearchStore
 from langchain.vectorstores import VectorStore as VectorStore
 
 
-_vecstores = [FAISS]
+_vecstores = [FAISS, ElasticsearchStore]
 _name2vecstores = {e.__name__: e for e in _vecstores}
 
 

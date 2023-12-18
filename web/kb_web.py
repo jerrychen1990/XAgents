@@ -9,6 +9,7 @@ import os
 import streamlit as st
 from web.util import get_default_idx
 from xagents.config import TEMP_DIR
+from xagents.kb.core import KnwoledgeBase
 
 from xagents.kb.service import create_knowledge_base, get_knowledge_base, list_knowledge_base_names, list_spliters, list_valid_exts, list_vecstores, list_distance_strategy
 from xagents.kb.splitter import get_splitter
@@ -74,7 +75,8 @@ def new_kb_page(kb_names, vs_names, embd_names, distance_strategys):
                                   embedding_config=embedding_config, distance_strategy=distance_strategy)
             msg = f"创建知识库{kb_name}成功"
             st.toast(msg)
-            st.info("msg")
+            st.info(msg)
+            st.rerun()
 
 
 def show_knowledge_base(kb_name: str):
@@ -120,6 +122,32 @@ def show_knowledge_base(kb_name: str):
             msg = f"添加知识库文件{file.name} success!"
             st.toast(msg)
     st.divider()
+    return kb
+
+
+def rebuild_and_delete(kb: KnwoledgeBase):
+    rebuild, _, delete = st.columns(3)
+
+    if rebuild.button(
+            "重新构建向量索引",
+            # help="无需上传文件，通过其它方式将文档拷贝到对应知识库content目录下，点击本按钮即可重建知识库。",
+            use_container_width=True,
+    ):
+        with st.spinner("向量库重构中，请耐心等待，勿刷新或关闭页面。"):
+            empty = st.empty()
+            empty.progress(0.0, "")
+            kb.rebuild()
+            st.rerun()
+
+    if delete.button(
+            "删除知识库",
+            use_container_width=True,
+            type="primary"
+
+    ):
+        kb.delete()
+        st.info(f"删除{kb.name}成功!")
+        st.rerun()
 
 
 def load_view():
@@ -137,4 +165,5 @@ def load_view():
     if selected_kb == "新建知识库":
         new_kb_page(kb_names, vs_names, embd_names, distance_strategys)
     else:
-        show_knowledge_base(selected_kb)
+        kb = show_knowledge_base(selected_kb)
+        rebuild_and_delete(kb)

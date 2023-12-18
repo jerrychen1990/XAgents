@@ -73,10 +73,10 @@ class KnwoledgeBaseFile:
         # logger.info(f"{to_dumps=}")
         jdump_lines(to_dumps, dst_path)
 
-    def load_chunks(self, chunk_path: str):
+    def load_chunks(self, chunk_path: str) -> List[KBChunk]:
         chunk_dicts = jload_lines(chunk_path)
         logger.info(f"loaded {len(chunk_dicts)} from {chunk_path}")
-        self.chunks: List[Chunk] = [Chunk(**c, idx=idx, kb_name=self.kb_name, file_name=self.file_name) for idx, c in enumerate(chunk_dicts)]
+        self.chunks: List[KBChunk] = [KBChunk(**c, idx=idx, kb_name=self.kb_name, file_name=self.file_name) for idx, c in enumerate(chunk_dicts)]
         return self.chunks
 
     def remove(self):
@@ -208,6 +208,7 @@ class KnwoledgeBase:
             chunks = kb_file.chunks
             all_chunks.extend(chunks)
         logger.info(f"rebuilding vecstore with {len(all_chunks)} chunks")
+        logger.debug(f"sample chunk:{all_chunks[0]}")
         self.vecstore = None
         self._add_chunks(chunks)
 

@@ -68,6 +68,10 @@ def create_knowledge_base(name: str, desc: str,
     return kb
 
 
+
+
+
+
 if __name__ == "__main__":
     print(list_knowledge_base_names())
     print(list_vecstores())
