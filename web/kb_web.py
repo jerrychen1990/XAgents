@@ -14,6 +14,8 @@ from xagents.kb.core import KnwoledgeBase
 from xagents.kb.service import create_knowledge_base, get_knowledge_base, list_knowledge_base_names, list_spliters, list_valid_exts, list_vecstores, list_distance_strategy
 from xagents.kb.splitter import get_splitter
 from xagents.model.service import list_embd_models
+from stqdm import stqdm
+
 
 from web.config import *
 
@@ -121,7 +123,7 @@ def show_knowledge_base(kb_name: str):
         splitter_config = dict(spliter_cls=splitter, parse_table=parse_table, splitter=cutter)
         splitter = get_splitter(splitter_config)
         with st.spinner("添加文件中，勿刷新或关闭页面。"):
-            for file in files:
+            for file in stqdm(files):
                 st.info(f"adding {file.name}...")
                 tmp_file_path = os.path.join(TEMP_DIR, "files", f"{file.name}")
                 os.makedirs(os.path.dirname(tmp_file_path), exist_ok=True)

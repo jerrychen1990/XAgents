@@ -13,7 +13,7 @@ import enum
 from pydantic import BaseModel, Field
 
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from xagents.config import *
 from langchain_core.documents import Document
@@ -81,25 +81,34 @@ class RecalledChunk(KBChunk):
             rs = rs+"\n"+forwards_str
         return rs
 
-    def to_detail_text(self):
+    def to_detail_text(self, with_context=False) -> str:
         backword_len = sum(len(c.content) for c in self.backwards)
         forwards_len = sum(len(c.content) for c in self.forwards)
         main_len = len(self.content)
 
-        detail_text = f"[score={self.score:2.3f}][{main_len}字][扩展后{backword_len+main_len+forwards_len}字][类型{self.content_type.value}][index:{self.idx}] **{self.content}**"
+        detail_text = f"[score={self.score:2.3f}][{main_len}字][扩展后{backword_len+main_len+forwards_len}字][类型{self.content_type.value}][第{self.page_idx}页][index:{self.idx}][相关问题:{self.query}]\n\n **{self.content}**"
+        if with_context:
+            backwords_str, forwards_str = self.get_contexts(self)
+            if backwords_str:
+                detail_text = backwords_str + "\n\n"+detail_text
+            if forwards_str:
+                detail_text = detail_text + "\n\n"+forwards_str
+        return detail_text
+
+    def get_contexts(self) -> Tuple[str, str]:
+        backwords_str, forwards_str = "", ""
+        backword_len = sum(len(c.content) for c in self.backwards)
+        forwards_len = sum(len(c.content) for c in self.forwards)
 
         if backword_len:
             backwords_str = "\n".join([f"{chunk.content}" for idx, chunk in enumerate(self.backwards)])
             backwords_str = f"上文[{backword_len}]字\n\n{backwords_str}"
-            detail_text = backwords_str + "\n\n"+detail_text
 
         if forwards_len:
             forwards_str = "\n".join([f"{chunk.content}" for idx, chunk in enumerate(self.forwards)])
             forwards_str = f"下文[{forwards_len}]字\n\n{forwards_str}"
 
-            detail_text = detail_text+"\n\n"+forwards_str
-        logger.debug(f"{detail_text=}")
-        return detail_text
+        return backwords_str, forwards_str
 
 
 class Table:

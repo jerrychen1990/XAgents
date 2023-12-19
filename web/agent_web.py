@@ -65,10 +65,16 @@ def load_view():
         message_placeholder.markdown(full_response)
         if resp.references:
             logger.debug("adding chunks info")
-            with reference_placeholder.expander("参考信息", expanded=False):
-                references = [f"[{idx+1}]  {chunk.to_detail_text()}" for idx, chunk in enumerate(resp.references)]
-                references = "\n\n--------\n\n".join(references)
-                st.markdown(references)
+            st.markdown("参考信息")
+
+            # with reference_placeholder.expander("参考信息", expanded=False):
+            for idx, chunk in enumerate(resp.references):
+                chunk_text = chunk.to_detail_text(with_context=False)
+                st.markdown(f"[{idx+1}]  {chunk_text}")
+                with st.expander(f"展示上下文", expanded=False):
+                    forward_str, backward_str = chunk.get_contexts()
+                    st.markdown(f"上文:{forward_str}")
+                    st.markdown(f"下文:{backward_str}")
 
         st.session_state.messages.append(
             {"role": "user", "content": message})

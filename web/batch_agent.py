@@ -70,7 +70,7 @@ def load_view():
     submit = st.button(label="提交")
     if submit:
         load_batch_view(get_resp_func=get_resp_func, records=records, columns=columns, file_name=uploaded_file.name,
-                        workers=work_num, require_keys=None)
+                        workers=work_num, require_keys=["question", "kb_name"])
 
 
 def load_batch_view(get_resp_func, records, columns, file_name,

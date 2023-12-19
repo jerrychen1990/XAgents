@@ -26,5 +26,8 @@ class LLM:
     def list_version(cls):
         raise NotImplementedError
 
+class EMBD(Embeddings):
+    @classmethod
+    def get_dim(cls)->int:
+        raise NotImplementedError
 
-EMBD = Embeddings

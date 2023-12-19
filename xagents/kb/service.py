@@ -57,7 +57,7 @@ def list_spliters() -> List[str]:
     return list(e.__name__ for e in _SPLITERS)
 
 
-@log_function_info
+@log_function_info()
 def create_knowledge_base(name: str, desc: str,
                           embedding_config: dict, vecstore_config: dict,
                           distance_strategy: DistanceStrategy = DistanceStrategy.MAX_INNER_PRODUCT

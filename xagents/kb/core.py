@@ -7,12 +7,13 @@
 '''
 
 
+import copy
 import re
-from typing import List, Union
+from typing import List, Type, Union
 from xagents.config import *
 import shutil
 from snippets import jdump_lines, jload_lines, log_cost_time, read2list, jdump, jload
-from xagents.kb.vector_store import XVecStore, get_vector_store
+from xagents.kb.vector_store import XVecStore, get_vecstore_cls
 from xagents.kb.loader import load_file
 from xagents.kb.splitter import AbstractSplitter
 from xagents.kb.common import *
@@ -124,8 +125,11 @@ class KnwoledgeBase:
         self.kb_files: List[KnwoledgeBaseFile] = self._load_kb_files()
         self.distance_strategy = distance_strategy
 
-        self.vecstore: XVecStore = get_vector_store(vecstore_config, embd_model=self.embd_model)
-        self._load_vecstore()
+        # self.vecstore: XVecStore = get_vector_store(vecstore_config, embd_model=self.embd_model)
+        self.vecstore_config = copy.copy(vecstore_config)
+        self.vecstore_config.update(embedding=self.embd_model)
+        self.vecstore_cls: Type[XVecStore] = get_vecstore_cls(self.vecstore_config.pop("vs_cls"))
+        self.vecstore = self._load_vecstore()
 
     @classmethod
     def from_config(cls, config: Union[dict, str]):
@@ -161,17 +165,26 @@ class KnwoledgeBase:
         return kb_files
 
     def _load_vecstore(self) -> XVecStore:
-        if os.path.exists(self.vecstore_path) and self.vecstore.is_local():
-            logger.info(f"loading vecstore from {self.vecstore_path}")
-            self.vecstore.load_local(folder_path=self.vecstore_path,
-                                     embeddings=self.embd_model, distance_strategy=self.distance_strategy)
+        if self.vecstore_cls.is_local():
+            if os.path.exists(self.vecstore_path):
+                logger.info(f"loading vecstore from {self.vecstore_path}")
+                vecstore: XVecStore = self.vecstore_cls.load_local(folder_path=self.vecstore_path,
+                                                                   embeddings=self.embd_model, distance_strategy=self.distance_strategy)
+            else:
+                logger.info(f"{self.vecstore_path} not exists, create a new local vecstore")
+                vecstore: XVecStore = self.vecstore_cls.from_config(self.vecstore_config)
         else:
-            logger.info(f"{self.vecstore_path} not exists, will not load vecstore")
+            logger.info(f"vecstore is remote, create a new remote vecstore")
+            vecstore: XVecStore = self.vecstore_cls.from_config(self.vecstore_config)
+        return vecstore
 
     def _add_chunks(self, chunks: List[KBChunk]):
         logger.info(f"adding {len(chunks)} chunks to vecstore")
         documents: List[Document] = [chunk.to_document() for chunk in chunks]
-        self.vecstore.add_documents(documents, embedding=self.embd_model)
+        if self.vecstore:
+            self.vecstore.add_documents(documents, embedding=self.embd_model)
+        else:
+            self.vecstore = self.vecstore_cls.from_documents(documents=documents, embedding=self.embd_model, **self.vecstore_config)
         if self.vecstore.is_local():
             logger.info("storing vectors...")
             self.vecstore.save_local(self.vecstore_path)
@@ -240,9 +253,11 @@ class KnwoledgeBase:
                 return 1.-s
             return s
         for query in querys:
-            logger.debug(f"searching {query}")
+            logger.debug(f"searching {query}  with vecstore_cls: {self.vecstore.__class__.__name__}")
             docs_with_score = self.vecstore.similarity_search_with_score(query, k=top_k, score_threshold=score_threshold)
             logger.debug(f"{len(docs_with_score)} origin chunks found")
+            logger.debug(f"{query}'s related docs{[d.page_content[:30] for d,s in docs_with_score]}")
+
             tmp_recalled_chunks = [RecalledChunk.from_document(d, score=_get_score(s), query=query) for d, s in docs_with_score]
             recalled_chunks.extend(tmp_recalled_chunks)
 
