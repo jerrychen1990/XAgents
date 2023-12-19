@@ -81,31 +81,35 @@ class RecalledChunk(KBChunk):
             rs = rs+"\n"+forwards_str
         return rs
 
-    def to_detail_text(self, with_context=False) -> str:
+    def to_detail_text(self, with_context=False, max_len=None) -> str:
         backword_len = sum(len(c.content) for c in self.backwards)
         forwards_len = sum(len(c.content) for c in self.forwards)
         main_len = len(self.content)
 
         detail_text = f"[score={self.score:2.3f}][{main_len}字][扩展后{backword_len+main_len+forwards_len}字][类型{self.content_type.value}][第{self.page_idx}页][index:{self.idx}][相关问题:{self.query}]\n\n **{self.content}**"
         if with_context:
-            backwords_str, forwards_str = self.get_contexts(self)
+            backwords_str, forwards_str = self.get_contexts(self, max_len=main_len)
             if backwords_str:
                 detail_text = backwords_str + "\n\n"+detail_text
             if forwards_str:
                 detail_text = detail_text + "\n\n"+forwards_str
         return detail_text
 
-    def get_contexts(self) -> Tuple[str, str]:
+    def get_contexts(self, max_len=None) -> Tuple[str, str]:
         backwords_str, forwards_str = "", ""
         backword_len = sum(len(c.content) for c in self.backwards)
         forwards_len = sum(len(c.content) for c in self.forwards)
 
         if backword_len:
             backwords_str = "\n".join([f"{chunk.content}" for idx, chunk in enumerate(self.backwards)])
+            if max_len:
+                backwords_str = backwords_str[:max_len]+"..."
             backwords_str = f"上文[{backword_len}]字\n\n{backwords_str}"
 
         if forwards_len:
             forwards_str = "\n".join([f"{chunk.content}" for idx, chunk in enumerate(self.forwards)])
+            if max_len:
+                forwards_str = forwards_str[:max_len]+"..."
             forwards_str = f"下文[{forwards_len}]字\n\n{forwards_str}"
 
         return backwords_str, forwards_str

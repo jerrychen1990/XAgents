@@ -6,9 +6,14 @@
 @Contact :   jerrychen1990@gmail.com
 '''
 
+import os
+from xagents.config import TEMP_DIR
 from xagents.kb.service import list_knowledge_base_names
 from web.config import *
 from xagents.model.service import list_llm_models, list_llm_versions
+from snippets import *
+from xagents.util import get_log
+logger = get_log(__name__)
 
 
 def get_default_idx(options, default_value):
@@ -50,3 +55,34 @@ def load_model_options(st):
 
     chat_kwargs = dict(temperature=temperature)
     return model, version, chat_kwargs
+
+
+def show_save_button(st, file_name, records, keep_name=True, **kwargs):
+    stem, surfix = os.path.splitext(file_name)
+    if keep_name:
+        dst_file_name = file_name
+
+    else:
+        dst_file_name = f"{stem}_download{surfix}"
+    dst_file_path = f"{TEMP_DIR}/{dst_file_name}"
+    logger.info(f"writing file to {dst_file_path}")
+    dump_list(records, dst_file_path)
+    with open(dst_file_path, "rb") as f:
+        byte_content = f.read()
+        st.download_button(label="下载文件", key=dst_file_path, data=byte_content,
+                           file_name=dst_file_name, mime="application/octet-stream", **kwargs)
+
+
+def show_upload_table(st, label="上传文件，xlsx,csv类型"):
+    uploaded_file = st.file_uploader(
+        label=label, type=["xlsx", "csv"])
+    if uploaded_file:
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        elif uploaded_file.name.endswith(".xlsx"):
+            df = pd.read_excel(uploaded_file)
+        df.fillna("", inplace=True)
+        records = df.to_dict(orient="records")
+        columns = list(records[0].keys())
+        return uploaded_file, records, columns
+    return uploaded_file, None, None

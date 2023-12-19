@@ -8,9 +8,8 @@
 import datetime
 import time
 import streamlit as st
-import pandas as pd
-from snippets import dump_list, batch_process, jdumps
-from web.util import load_kb_options, load_model_options
+from snippets import batch_process, jdumps
+from web.util import load_kb_options, load_model_options, show_save_button, show_upload_table
 from xagents.config import *
 from xagents.agent.core import AgentResp
 from xagents.agent.xagent import XAgent
@@ -18,21 +17,6 @@ from xagents.util import get_log
 from web.config import *
 
 logger = get_log(__name__)
-
-
-def load_upload_table(label="上传文件，xlsx,csv类型"):
-    uploaded_file = st.file_uploader(
-        label=label, type=["xlsx", "csv"])
-    if uploaded_file:
-        if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
-        elif uploaded_file.name.endswith(".xlsx"):
-            df = pd.read_excel(uploaded_file)
-        df.fillna("", inplace=True)
-        records = df.to_dict(orient="records")
-        columns = list(records[0].keys())
-        return uploaded_file, records, columns
-    return uploaded_file, None, None
 
 
 def load_view():
@@ -46,7 +30,7 @@ def load_view():
     work_num = st.sidebar.number_input(
         key="work_num", label="并发数", min_value=1, max_value=10, value=1, step=1)
 
-    uploaded_file, records, columns = load_upload_table()
+    uploaded_file, records, columns = show_upload_table(st)
 
     def get_resp_func(item):
         prompt = item["question"]
@@ -76,15 +60,6 @@ def load_view():
 def load_batch_view(get_resp_func, records, columns, file_name,
                     workers=1, max_num=100, require_keys=None):
     # 保存文件函数
-    def save_file():
-        dst_file_name = f"{stem}_{idx}_{len(records)}_{datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')}.{surfix}"
-        dst_file_path = f"{TEMP_DIR}/{dst_file_name}"
-        logger.info(f"writing file to {dst_file_path}")
-        dump_list(records, dst_file_path)
-        with open(dst_file_path, "rb") as f:
-            byte_content = f.read()
-            st.download_button(label="下载文件", key=dst_file_name, data=byte_content,
-                               file_name=dst_file_name, mime="application/octet-stream")
 
     # 校验数据
     start = time.time()
@@ -120,5 +95,6 @@ def load_batch_view(get_resp_func, records, columns, file_name,
         for k, v in item.items():
             st.info(f"{k}:{v}")
 
-    save_file()
+    dst_file_name = f"{stem}_{idx}_{len(records)}_{datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')}.{surfix}"
+    show_save_button(st, file_name=dst_file_name, records=records)
     st.markdown("任务完成")
