@@ -57,8 +57,8 @@ class XFAISS(XVecStore, FAISS):
         else:
             # Default to L2, currently other metric types not initialized.
             index = faiss.IndexFlatL2(dim_len)
-        config.update(embedding_function=config["embedding"])
-        config.update(index=index, index_to_docstore_id=InMemoryDocstore(), relevance_score_fn={})
+        config.update(embedding_function=config.pop("embedding"))
+        config.update(index=index, docstore=InMemoryDocstore(), index_to_docstore_id={})
         logger.debug(f"{config=}")
 
         vecstore = cls(

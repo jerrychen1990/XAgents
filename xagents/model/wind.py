@@ -80,8 +80,8 @@ class ZetaLLM(LLM):
             "v1.0.0",
         ]
 
-    def __init__(self):
-        super().__init__(name="ZETA", version="v1.0.0")
+    def __init__(self, name="ZETA", version="v1.0.0"):
+        super().__init__(name=name, version=version)
 
     def generate(self, prompt, history=[], stream=True,
                  temperature=0.01, **kwargs):

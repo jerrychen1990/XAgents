@@ -2,3 +2,4 @@ python-snippets
 agit
 PyPDF2
 elasticsearch
+stqdm

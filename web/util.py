@@ -8,7 +8,7 @@
 
 import os
 from xagents.config import TEMP_DIR
-from xagents.kb.service import list_knowledge_base_names
+from xagents.kb.service import get_knowledge_base, list_knowledge_base_names
 from web.config import *
 from xagents.model.service import list_llm_models, list_llm_versions
 from snippets import *
@@ -31,9 +31,10 @@ def load_kb_options(st, default_use_kb=True):
     if use_kb:
         kb_names = list_knowledge_base_names()
         kb_name = st.selectbox('选择知识库', kb_names, index=get_default_idx(kb_names, DEFAULT_KB))
+        kb = get_knowledge_base(kb_name)
         top_k = st.number_input('召回数', value=DEFAULT_TOP_K, min_value=1, max_value=10, step=1)
         do_expand = st.checkbox('上下文扩展', value=True)
-        kb_prompt_template = st.text_area('prompt模板', value=DEFAULT_KB_PROMPT_TEMPLATE, height=150)
+        kb_prompt_template = st.text_area('prompt模板', value=kb.prompt_template, height=150)
         do_split_query = st.checkbox('查询语句分句', value=True)
         chat_kwargs.update(top_k=top_k, do_expand=do_expand, do_split_query=do_split_query)
 

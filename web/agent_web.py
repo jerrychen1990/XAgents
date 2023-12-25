@@ -25,7 +25,7 @@ def load_view():
 
     def get_agent():
         agent = st.session_state.get("agent")
-        if not agent:
+        if True:
             agent = XAgent(name="tmp_agent",
                            memory_config=dict(size=10),
                            llm_config=dict(model_cls=model, name=model, version=version),
