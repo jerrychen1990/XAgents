@@ -14,7 +14,7 @@ from xagents.config import *
 import shutil
 from snippets import jdump_lines, jload_lines, log_cost_time, read2list, jdump, jload
 from xagents.kb.vector_store import XVecStore, get_vecstore_cls
-from xagents.kb.loader import load_file
+from xagents.kb.loader import get_loader_cls
 from xagents.kb.splitter import AbstractSplitter
 from xagents.kb.common import *
 from xagents.model.service import EMBD, get_embd_model
@@ -46,17 +46,21 @@ class KnwoledgeBaseFile:
         self.kb_name = kb_name
         self.file_name = os.path.basename(origin_file_path)
         self.stem, self.suffix = os.path.splitext(self.file_name)
-        self.chunks: List[KBChunk] = None
-        self.origin_file_path = origin_file_path
-        self._save_origin()
 
-    def _save_origin(self):
+        self.chunks: List[KBChunk] = None
+        self.origin_file_path = self._save_origin(origin_file_path)
+        self.loader_cls = get_loader_cls(self.origin_file_path)
+        self.chunk_path = get_chunk_path(self.kb_name, self.file_name)
+        self._load_chunks()
+
+    def _save_origin(self, origin_file_path):
         dst_path = get_origin_path(self.kb_name, self.file_name)
-        if dst_path == self.origin_file_path:
-            return
+        if dst_path == origin_file_path:
+            return dst_path
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
         logger.info(f"save origin file to {dst_path}")
-        shutil.copy(self.origin_file_path, dst_path)
+        shutil.copy(origin_file_path, dst_path)
+        return dst_path
 
     # 加载/切割文件
     def _split(self, origin_chunks: List[Chunk], splitter: AbstractSplitter) -> List[KBChunk]:
@@ -78,9 +82,13 @@ class KnwoledgeBaseFile:
         # logger.info(f"{to_dumps=}")
         jdump_lines(to_dumps, dst_path)
 
-    def load_chunks(self, chunk_path: str) -> List[KBChunk]:
-        chunk_dicts = jload_lines(chunk_path)
-        logger.info(f"loaded {len(chunk_dicts)} from {chunk_path}")
+    def _load_chunks(self) -> List[KBChunk]:
+        if not os.path.exists(self.chunk_path):
+            logger.info(f"{self.chunk_path} not exists, will not load chunks")
+            self.chunks = None
+            return
+        chunk_dicts = jload_lines(self.chunk_path)
+        logger.info(f"loaded {len(chunk_dicts)} from {self.chunk_path}")
         self.chunks: List[KBChunk] = [KBChunk(**c, idx=idx, kb_name=self.kb_name, file_name=self.file_name) for idx, c in enumerate(chunk_dicts)]
         return self.chunks
 
@@ -93,20 +101,20 @@ class KnwoledgeBaseFile:
         if os.path.exists(origin_path):
             os.remove(origin_path)
 
-    def parse(self, splitter: AbstractSplitter, do_save=True) -> List[KBChunk]:
+    def parse(self, splitter: AbstractSplitter) -> List[KBChunk]:
         logger.info("start parsing")
-        origin_chunks: List[Chunk] = load_file(self.origin_file_path)
+        loader = self.loader_cls()
+        origin_chunks: List[Chunk] = loader.load(self.origin_file_path)
         logger.info(f"load {len(origin_chunks)} origin_chunks")
         # logger.info(origin_chunks[:4])
         self.chunks = self._split(origin_chunks, splitter)
         logger.info(f"splitted to {len(self.chunks)} kb_chunks")
-
-        if do_save:
-            self._save_chunks()
+        self._save_chunks()
         return self.chunks
 
     def get_info(self) -> dict:
-        return dict(file_name=self.file_name, chunk_len=len(self.chunks) if self.chunks else 0)
+        return dict(file_name=self.file_name, chunk_len=len(self.chunks) if self.chunks else 0,
+                    loader=self.loader_cls.__name__, origin_file_path=self.origin_file_path, chunk_path=self.chunk_path)
 
 
 class KnwoledgeBase:
@@ -143,7 +151,7 @@ class KnwoledgeBase:
         return cls(**config)
 
     def list_kb_file_info(self) -> List[dict]:
-        return [e.get_info() for e in self.kb_files]
+        return [dict(No=idx+1, **e.get_info()) for idx, e in enumerate(self.kb_files)]
 
     def _build_dirs(self):
         self.kb_dir = get_kb_dir(self.name)
@@ -165,9 +173,6 @@ class KnwoledgeBase:
         for file_name in os.listdir(self.origin_dir):
             logger.info(f"loading kb_file:{file_name}")
             kb_file: KnwoledgeBaseFile = KnwoledgeBaseFile(kb_name=self.name, origin_file_path=os.path.join(self.origin_dir, file_name))
-            chunk_path = get_chunk_path(self.kb_dir, file_name)
-            if os.path.exists(chunk_path):
-                kb_file.load_chunks(chunk_path)
             kb_files.append(kb_file)
         return kb_files
 

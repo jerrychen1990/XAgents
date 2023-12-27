@@ -5,16 +5,22 @@
 @Author  :   ChenHao
 @Contact :   jerrychen1990@gmail.com
 '''
+from st_aggrid import JsCode, AgGrid
+
+# from test import show
 import os
+from typing import Literal, Tuple, Dict
 import streamlit as st
+import pandas as pd
 from web.util import get_default_idx
 from xagents.config import TEMP_DIR
 from xagents.kb.core import KnwoledgeBase
-
-from xagents.kb.service import create_knowledge_base, get_knowledge_base, list_knowledge_base_names, list_valid_exts, list_vecstores, list_distance_strategy
-from xagents.kb.splitter import get_splitter
 from xagents.model.service import list_embd_models
+
+from xagents.kb.service import create_knowledge_base, get_knowledge_base, list_distance_strategy, list_knowledge_base_names, list_valid_exts, list_vecstores
+from xagents.kb.splitter import get_splitter
 from stqdm import stqdm
+from st_aggrid.grid_options_builder import GridOptionsBuilder
 
 
 from web.config import *
@@ -136,79 +142,107 @@ def add_kb_file_page(kb: KnwoledgeBase):
     st.divider()
 
 
+cell_renderer = JsCode("""function(params) {if(params.value==true){return '✓'}else{return '×'}}""")
+
+
+def config_aggrid(
+        df: pd.DataFrame,
+        columns: Dict[Tuple[str, str], Dict] = {},
+        selection_mode: Literal["single", "multiple", "disabled"] = "single",
+        use_checkbox: bool = False,
+) -> GridOptionsBuilder:
+    gb = GridOptionsBuilder.from_dataframe(df)
+    gb.configure_column("No", width=40)
+    for (col, header), kw in columns.items():
+        gb.configure_column(col, header, wrapHeaderText=True, **kw)
+    gb.configure_selection(
+        selection_mode=selection_mode,
+        use_checkbox=use_checkbox,
+        # pre_selected_rows=st.session_state.get("selected_rows", [0]),
+    )
+    return gb
+
+
+# def file_exists(kb: str, selected_rows: List) -> Tuple[str, str]:
+#     '''
+#     check whether a doc file exists in local knowledge base folder.
+#     return the file's name and path if it exists.
+#     '''
+#     if selected_rows:
+#         file_name = selected_rows[0]["file_name"]
+#         file_path = get_file_content_path(kb, file_name)
+#         if os.path.isfile(file_path):
+#             return file_name, file_path
+#     return "", ""
+
+
 def knowledge_base_info_page(kb: KnwoledgeBase):
     with st.form(f"{kb.name} 信息"):
         st.write(f"{kb.name}详细信息")
         kb_name = kb.name
         prompt_template = st.text_area("prompt模板", kb.prompt_template, height=150)
-        kb_infos = kb.list_kb_file_info()
-
-        # doc_details = pd.DataFrame(get_kb_file_details(kb))
-        if not len(kb_infos):
-            st.info(f"知识库 `{kb_name}` 中暂无文件")
-        else:
-            st.write(f"知识库 `{kb_name}` 中已有文件:")
-            # st.info("知识库中包含源文件与向量库，请从下表中选择文件后操作")
-            # doc_details.drop(columns=["kb_name"], inplace=True)
-            # doc_details = doc_details[[
-            #     "No", "file_name", "document_loader", "text_splitter", "docs_count", "in_folder", "in_db",
-            # ]]
-            # doc_details["in_folder"] = doc_details["in_folder"].replace(True, "✓").replace(False, "×")
-            # doc_details["in_db"] = doc_details["in_db"].replace(True, "✓").replace(False, "×")
-            # gb = config_aggrid(
-            #     doc_details,
-            #     {
-            #         ("No", "序号"): {},
-            #         ("file_name", "文档名称"): {},
-            #         # ("file_ext", "文档类型"): {},
-            #         # ("file_version", "文档版本"): {},
-            #         ("document_loader", "文档加载器"): {},
-            #         ("docs_count", "文档数量"): {},
-            #         ("text_splitter", "分词器"): {},
-            #         # ("create_time", "创建时间"): {},
-            #         ("in_folder", "源文件"): {"cellRenderer": cell_renderer},
-            #         ("in_db", "向量库"): {"cellRenderer": cell_renderer},
-            #     },
-            #     "multiple",
-            # )
-
-            # doc_grid = AgGrid(
-            #     doc_details,
-            #     gb.build(),
-            #     columns_auto_size_mode="FIT_CONTENTS",
-            #     theme="alpine",
-            #     custom_css={
-            #         "#gridToolBar": {"display": "none"},
-            #     },
-            #     allow_unsafe_jscode=True,
-            #     enable_enterprise_modules=False
-            # )
-
-            # selected_rows = doc_grid.get("selected_rows", [])
-
-            # cols = st.columns(4)
-            # file_name, file_path = file_exists(kb, selected_rows)
-            # if file_path:
-            #     with open(file_path, "rb") as fp:
-            #         cols[0].download_button(
-            #             "下载选中文档",
-            #             fp,
-            #             file_name=file_name,
-            #             use_container_width=True, )
-            # else:
-            #     cols[0].download_button(
-            #         "下载选中文档",
-            #         "",
-            #         disabled=True,
-            #         use_container_width=True, )
-
-            st.info(kb_infos)
 
         if st.form_submit_button("更新"):
             kb.prompt_template = prompt_template
             kb.save()
             st.toast("prompt updated!")
 
+    kb_infos = kb.list_kb_file_info()
+    kb_info_df = pd.DataFrame.from_records(kb_infos)
+    if not len(kb_infos):
+        st.info(f"知识库 `{kb_name}` 中暂无文件")
+    else:
+        st.write(f"知识库 `{kb_name}` 中已有文件:")
+        st.info("知识库中包含源文件与向量库，请从下表中选择文件后操作")
+
+        gb = config_aggrid(
+            kb_info_df,
+            {
+                ("No", "序号"): {},
+                ("file_name", "文档名称"): {},
+                ("loader", "文档加载器"): {},
+                ("chunk_len", "切片数量"): {},
+            },
+            "single",
+        )
+
+        doc_grid = AgGrid(
+            kb_info_df,
+            gb.build(),
+            columns_auto_size_mode="FIT_CONTENTS",
+            theme="streamlit",
+            custom_css={
+                "#gridToolBar": {"display": "none"},
+            },
+            allow_unsafe_jscode=True,
+            enable_enterprise_modules=False
+        )
+
+        st.write()
+        selected_rows = doc_grid.get("selected_rows", [])
+        if selected_rows:
+            selected_row = selected_rows[0]
+
+            cols = st.columns(4)
+
+            origin_file_path = selected_row.get("origin_file_path")
+            if origin_file_path:
+                with open(origin_file_path, "r") as f:
+                    cols[0].download_button(
+                        "下载选中原始文档",
+                        "",
+                        disabled=False,
+                        use_container_width=True
+                    )
+            chunk_path = selected_row.get("chunk_path")
+            if chunk_path:
+                with open(chunk_path, "r") as f:
+                    cols[1].download_button(
+                        "下载选中切片",
+                        "",
+                        disabled=False,
+                        use_container_width=True
+                    )
     st.divider()
 
 
@@ -243,6 +277,7 @@ def init():
 
 
 def load_view():
+
     kb_names = list_knowledge_base_names()
     vs_names = list_vecstores()
     embd_names = list_embd_models()
