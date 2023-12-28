@@ -94,7 +94,7 @@ class RecalledChunk(KBChunk):
         forwards_len = sum(len(c.content) for c in self.forwards)
         main_len = len(self.content)
 
-        detail_text = f"[score={self.score:2.3f}][{main_len}字][扩展后{backword_len+main_len+forwards_len}字][类型{self.content_type.value}][第{self.page_idx}页][index:{self.idx}][相关问题:{self.query}]\n\n **{self.content}**"
+        detail_text = f"[score={self.score:2.3f}][{main_len}字][扩展后{backword_len+main_len+forwards_len}字][类型{self.content_type.value}][第{self.page_idx}页][index:{self.idx}][相关文档:{self.file_name}][相关问题:{self.query}]\n\n **{self.content}**"
         if with_context:
             backwords_str, forwards_str = self.get_contexts(self, max_len=main_len)
             if backwords_str:

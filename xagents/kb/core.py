@@ -244,7 +244,7 @@ class KnwoledgeBase:
         """
         logger.info(f"adding {kb_file.file_name} to {self.name}")
         if not kb_file.chunks:
-            kb_file.parse(splitter=splitter, do_save=True)
+            kb_file.parse(splitter=splitter)
         self._add_chunks(kb_file.chunks)
         logger.info("add kb_file done")
 
@@ -307,12 +307,25 @@ class KnwoledgeBase:
         self._add_chunks(chunks)
 
     @log_cost_time(name="kb_search")
-    def search(self, query: str, top_k: int = 3, score_threshold=None,
-               do_split_query=False,
+    def search(self, query: str, top_k: int = 3, score_threshold: float = None,
+               do_split_query=False, file_names: List[str] = None,
                do_expand=False, expand_len: int = 500, forward_rate: float = 0.5) -> List[RecalledChunk]:
+        """知识库检索
+
+        Args:
+            query (str): 待检索的query
+            top_k (int, optional): 返回多少个chunk. Defaults to 3.
+            score_threshold (float, optional): 召回的chunk相似度阈值. Defaults to None.
+            do_split_query (bool, optional): 是否按照？切分query并分别召回. Defaults to False.
+            file_names (List[str], optional): 按照名称过滤需要召回的片段所在的文件. Defaults to None.
+            do_expand (bool, optional): 返回的chunk是否做上下文扩展. Defaults to False.
+            expand_len (int, optional): 上下文扩展后的chunk字符长度（do_expand=True时生效）. Defaults to 500.
+            forward_rate (float, optional): 上下文扩展时向下文扩展的比率（do_expand=True时生效）. Defaults to 0.5.
+
+        Returns:
+            List[RecalledChunk]: _description_
         """
-        按照query检索
-        """
+
         if not self.vecstore:
             logger.error("向量索引尚未建立，无法搜索!")
             return []
@@ -325,9 +338,15 @@ class KnwoledgeBase:
             if self.distance_strategy in [DistanceStrategy.EUCLIDEAN_DISTANCE]:
                 return 1.-s
             return s
+
+        _filter = dict()
+        if file_names:
+            _filter = dict(file_name=file_names)
+
         for query in querys:
-            logger.debug(f"searching {query}  with vecstore_cls: {self.vecstore.__class__.__name__}")
-            docs_with_score = self.vecstore.similarity_search_with_score(query, k=top_k, score_threshold=score_threshold)
+            logger.debug(f"searching {query} with vecstore_cls: {self.vecstore.__class__.__name__}, {_filter=}")
+
+            docs_with_score = self.vecstore.similarity_search_with_score(query, k=top_k, score_threshold=score_threshold, filter=_filter)
             logger.debug(f"{len(docs_with_score)} origin chunks found")
             logger.debug(f"{query}'s related docs{[d.page_content[:30] for d,s in docs_with_score]}")
 

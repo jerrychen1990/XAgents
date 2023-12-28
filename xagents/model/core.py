@@ -22,7 +22,8 @@ class LLM:
                  temperature=0.01, **kwargs):
         raise NotImplementedError
 
-    def list_version(self):
+    @classmethod
+    def list_version(cls):
         raise NotImplementedError
 
 

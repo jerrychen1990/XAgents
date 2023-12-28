@@ -8,7 +8,7 @@
 
 
 from xagents.model.core import LLM
-from agit.backend.openai_bk import call_llm_api, list_models
+from agit.backend.openai_bk import call_llm_api
 from xagents.util import get_log
 
 logger = get_log(__name__)
@@ -19,10 +19,12 @@ class GPT(LLM):
         super().__init__(name, version)
         self.proxy = proxy
 
-    def list_versions(self):
-        models = list_models(keyword="gpt", proxy=self.proxy)
-        model_names = sorted([e.id for e in models])
-        return model_names
+    @classmethod
+    def list_versions(cls):
+        return ["gpt-4"]
+        # models = list_models(keyword="gpt", proxy=self.proxy)
+        # model_names = sorted([e.id for e in models])
+        # return model_names
 
     def generate(self, prompt, history=[], system=None, stream=True, temperature=0.01, **kwargs):
         resp = call_llm_api(prompt=prompt, history=history, model=self.version, proxy=self.proxy,

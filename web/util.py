@@ -13,6 +13,7 @@ from web.config import *
 from xagents.model.service import list_llm_models, list_llm_versions
 from snippets import *
 from xagents.util import get_log
+from streamlit.delta_generator import DeltaGenerator
 logger = get_log(__name__)
 
 
@@ -23,7 +24,7 @@ def get_default_idx(options, default_value):
         return 0
 
 
-def load_kb_options(st, default_use_kb=True):
+def load_kb_options(st: DeltaGenerator, default_use_kb=True):
     chat_kwargs = dict()
     use_kb = st.checkbox('使用知识库', value=default_use_kb)
     kb_name, kb_prompt_template = None, None
@@ -32,6 +33,13 @@ def load_kb_options(st, default_use_kb=True):
         kb_names = list_knowledge_base_names()
         kb_name = st.selectbox('选择知识库', kb_names, index=get_default_idx(kb_names, DEFAULT_KB))
         kb = get_knowledge_base(kb_name)
+        filter_files = st.checkbox("筛选知识库文件", value=False)
+        if filter_files:
+            kb_files = kb.list_files()
+            kb_files = [e.file_name for e in kb_files]
+            file_names: List[str] = st.multiselect('选择知识库文件', kb_files)
+            chat_kwargs.update(file_names=file_names)
+
         top_k = st.number_input('召回数', value=DEFAULT_TOP_K, min_value=1, max_value=10, step=1)
         do_expand = st.checkbox('上下文扩展', value=True)
         kb_prompt_template = st.text_area('prompt模板', value=kb.prompt_template, height=150)

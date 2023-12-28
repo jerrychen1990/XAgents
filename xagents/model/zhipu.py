@@ -22,7 +22,8 @@ class GLM(LLM):
         super().__init__(name, version)
         self.api_key = api_key
 
-    def list_versions(self):
+    @classmethod
+    def list_versions(cls):
         return [
             "chatglm3_32b_alpha",
             "chatglm3",
@@ -41,7 +42,7 @@ class GLM(LLM):
         ]
 
     def generate(self, prompt, history=[], system=None, stream=True, temperature=0.01, **kwargs):
-        # logger.info(f"{self.__class__} generating resp with {prompt=}, {history=}") 
+        # logger.info(f"{self.__class__} generating resp with {prompt=}, {history=}")
 
         resp = call_llm_api(prompt=prompt, history=history, model=self.version, temperature=temperature, do_search=False,
                             system=system, stream=stream, api_key=self.api_key, logger=logger, **kwargs)
