@@ -22,8 +22,7 @@ class GLM(LLM):
         super().__init__(name, version)
         self.api_key = api_key
 
-    @classmethod
-    def list_versions(cls):
+    def list_versions(self):
         return [
             "chatglm3_32b_alpha",
             "chatglm3",

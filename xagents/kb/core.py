@@ -22,9 +22,6 @@ from langchain_core.documents import Document
 from langchain.vectorstores.utils import DistanceStrategy
 
 
-# 知识库处理后的切片基础类型
-
-
 def get_kb_dir(kb_name) -> str:
     return os.path.join(KNOWLEDGE_BASE_DIR, kb_name)
 
@@ -41,6 +38,7 @@ def get_config_path(kb_name) -> str:
     return os.path.join(get_kb_dir(kb_name), "config.json")
 
 
+# 知识库文件类
 class KnwoledgeBaseFile:
     def __init__(self, kb_name: str, origin_file_path: str):
         self.kb_name = kb_name
@@ -54,6 +52,9 @@ class KnwoledgeBaseFile:
         self._load_chunks()
 
     def _save_origin(self, origin_file_path):
+        """
+        保存原始文件
+        """
         dst_path = get_origin_path(self.kb_name, self.file_name)
         if dst_path == origin_file_path:
             return dst_path
@@ -64,6 +65,9 @@ class KnwoledgeBaseFile:
 
     # 加载/切割文件
     def _split(self, origin_chunks: List[Chunk], splitter: AbstractSplitter) -> List[KBChunk]:
+        """
+        切分文件
+        """
         rs_chunks, idx = [], 0
         for origin_chunk in origin_chunks:
             chunks = splitter.split_chunk(origin_chunk)
@@ -75,6 +79,9 @@ class KnwoledgeBaseFile:
         return rs_chunks
 
     def _save_chunks(self):
+        """
+        保存切片
+        """
         dst_path = get_chunk_path(self.kb_name, self.file_name)
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
         logger.info(f"save chunks to {dst_path}")
@@ -83,6 +90,9 @@ class KnwoledgeBaseFile:
         jdump_lines(to_dumps, dst_path)
 
     def _load_chunks(self) -> List[KBChunk]:
+        """
+        从切片文件加载切片
+        """
         if not os.path.exists(self.chunk_path):
             logger.info(f"{self.chunk_path} not exists, will not load chunks")
             self.chunks = None
@@ -93,6 +103,9 @@ class KnwoledgeBaseFile:
         return self.chunks
 
     def remove(self):
+        """
+        删除知识库文档
+        """
         chunk_path = get_chunk_path(self.kb_name, self.file_name)
         if os.path.exists(chunk_path):
             os.remove(chunk_path)
@@ -102,6 +115,9 @@ class KnwoledgeBaseFile:
             os.remove(origin_path)
 
     def parse(self, splitter: AbstractSplitter) -> List[KBChunk]:
+        """
+        load并切片、存储
+        """
         logger.info("start parsing")
         loader = self.loader_cls()
         origin_chunks: List[Chunk] = loader.load(self.origin_file_path)
@@ -113,8 +129,13 @@ class KnwoledgeBaseFile:
         return self.chunks
 
     def get_info(self) -> dict:
+        """
+        获取文件信息
+        """
         return dict(file_name=self.file_name, chunk_len=len(self.chunks) if self.chunks else 0,
                     loader=self.loader_cls.__name__, origin_file_path=self.origin_file_path, chunk_path=self.chunk_path)
+
+# 知识库类
 
 
 class KnwoledgeBase:
@@ -151,6 +172,9 @@ class KnwoledgeBase:
         return cls(**config)
 
     def list_kb_file_info(self) -> List[dict]:
+        """
+        列出知识库文件
+        """
         return [dict(No=idx+1, **e.get_info()) for idx, e in enumerate(self.kb_files)]
 
     def _build_dirs(self):
@@ -177,6 +201,9 @@ class KnwoledgeBase:
         return kb_files
 
     def _load_vecstore(self) -> XVecStore:
+        """
+        加载向量库
+        """
 
         tmp_config = dict(**self.vecstore_config, embedding=self.embd_model, distance_strategy=self.distance_strategy)
         del tmp_config["vs_cls"]
@@ -195,6 +222,9 @@ class KnwoledgeBase:
         return vecstore
 
     def _add_chunks(self, chunks: List[KBChunk]):
+        """
+        添加切片
+        """
         logger.info(f"adding {len(chunks)} chunks to vecstore")
         documents: List[Document] = [chunk.to_document() for chunk in chunks]
         if self.vecstore:
@@ -209,6 +239,9 @@ class KnwoledgeBase:
             self.vecstore.save_local(self.vecstore_path)
 
     def add_kb_file(self, kb_file: KnwoledgeBaseFile, splitter: AbstractSplitter):
+        """
+        添加文档
+        """
         logger.info(f"adding {kb_file.file_name} to {self.name}")
         if not kb_file.chunks:
             kb_file.parse(splitter=splitter, do_save=True)
@@ -223,6 +256,10 @@ class KnwoledgeBase:
         return self.kb_files
 
     def remove_file(self, kb_file: Union[KnwoledgeBaseFile, str]):
+        """
+        删除文档
+        """
+
         if isinstance(kb_file, str):
             kb_file = self._get_kb_file_by_name(kb_file)
         if not kb_file:
@@ -233,11 +270,18 @@ class KnwoledgeBase:
         self.rebuild()
 
     def delete(self):
+        """
+        删除知识库
+        """
         logger.info(f"deleting kb:{self.name}")
         shutil.rmtree(path=self.kb_dir)
         logger.info(f"{self.name} deleted")
 
     def save(self):
+        """
+        保存知识库配置文件
+        """
+
         conf = dict(name=self.name, embedding_config=self.embedding_config, description=self.description,
                     vecstore_config=self.vecstore_config, distance_strategy=self.distance_strategy,
                     prompt_template=self.prompt_template)
@@ -246,6 +290,9 @@ class KnwoledgeBase:
 
     @log_cost_time(name="rebuild vectstore")
     def rebuild(self, re_parse=False):
+        """
+        重新构建向量知识库
+        """
         all_chunks = []
 
         for kb_file in self.kb_files:
@@ -263,6 +310,9 @@ class KnwoledgeBase:
     def search(self, query: str, top_k: int = 3, score_threshold=None,
                do_split_query=False,
                do_expand=False, expand_len: int = 500, forward_rate: float = 0.5) -> List[RecalledChunk]:
+        """
+        按照query检索
+        """
         if not self.vecstore:
             logger.error("向量索引尚未建立，无法搜索!")
             return []

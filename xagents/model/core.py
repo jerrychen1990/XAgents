@@ -22,12 +22,11 @@ class LLM:
                  temperature=0.01, **kwargs):
         raise NotImplementedError
 
-    @classmethod
-    def list_version(cls):
+    def list_version(self):
         raise NotImplementedError
+
 
 class EMBD(Embeddings):
     @classmethod
-    def get_dim(cls)->int:
+    def get_dim(cls) -> int:
         raise NotImplementedError
-

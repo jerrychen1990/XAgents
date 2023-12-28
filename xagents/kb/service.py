@@ -19,8 +19,6 @@ from langchain.vectorstores.utils import DistanceStrategy
 logger = get_log(__name__)
 
 
-
-
 def list_knowledge_base_names():
     kb_names = os.listdir(KNOWLEDGE_BASE_DIR)
     return kb_names
@@ -35,6 +33,9 @@ def list_distance_strategy():
 
 
 def get_knowledge_base(name: str) -> KnwoledgeBase:
+    """
+    根据名称获取知识库实例
+    """
     kb_names = list_knowledge_base_names()
     assert name in kb_names, f"{name} not in {kb_names}"
     # TODO load逻辑，从数据库中获取kb信息
@@ -63,6 +64,9 @@ def create_knowledge_base(name: str, desc: str,
                           embedding_config: dict, vecstore_config: dict,
                           distance_strategy: DistanceStrategy = DistanceStrategy.MAX_INNER_PRODUCT
                           ):
+    """
+    创建知识库
+    """
     logger.info(f"Creating knowledge base {name}...")
     kb_names = list_knowledge_base_names()
     if name in kb_names:

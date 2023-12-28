@@ -1,61 +1,58 @@
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+'''
+@Time    :   2023/12/28 10:59:55
+@Author  :   ChenHao
+@Contact :   jerrychen1990@gmail.com
+'''
 from typing import Union
-from pydantic import BaseModel
-from flask import Flask, jsonify, request
-from flasgger import Swagger
-from xagents.kb.service import *
-from xagents.util import get_log
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
 
+from xagents.kb.service import get_knowledge_base, list_knowledge_base_names
+from xagents.util import get_log
 logger = get_log(__name__)
 
 
+app = FastAPI()
+
+
 class Response(BaseModel):
-    code: int
-    msg: str
-    data: Union[dict, list]
+    code: int = Field(description="返回码,200为正常返回", default=200)
+    msg: str = Field(description="返回消息", default="success")
+    data: Union[dict, list, BaseModel] = Field(description="返回数据", default={})
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "code": 200,
+                "msg": "success",
+            }
+        }
 
 
-app = Flask(__name__)
-swagger = Swagger(app)
+@app.get("/health")
+def health() -> Response:
+    resp = Response(data={"status": "OK"})
+    return resp
 
 
-@app.route('/health', methods=['GET'])
-def health():
-    return jsonify(dict(status="OK"))
-
-
-@app.route('/get_knowledge_base_list', methods=['GET'])
-def get_knowledge_base_list():
-    """列出所有知识库的名称
-    ---
-    responses:
-      200:
-        description: 知识库名称的列表
-        examples:
-          rgb: ['kb1', 'k2b']
-    """
+@app.get('/get_knowledge_base_list',
+         tags=["knowledge_base"],
+         summary="列出所有知识库名称")
+def get_knowledge_base_list() -> Response:
     knowledge_bases = list_knowledge_base_names()
-    resp = Response(code=200, msg="OK", data=knowledge_bases)
-    return jsonify(resp.model_dump())
+    resp = Response(data=knowledge_bases)
+    return resp
 
 
-@app.route('/knowledge_base_detail', methods=['POST'])
-def knowledge_base_detail():
-    """查询给定知识库的详细情况
-    ---
-    responses:
-      200:
-        description: 知识库名称的列表
-        examples:
-          rgb: ['kb1', 'k2b']
-    """
-    knowledge_base_name = request.get_json()["knowledge_base_name"]
+@app.post('/knowledge_base_detail', tags=["knowledge_base"], summary="获取知识库详情")
+def knowledge_base_detail(knowledge_base_name: str) -> Response:
+
     logger.info(f"get knowledge base detail with: {knowledge_base_name}")
     kb = get_knowledge_base(knowledge_base_name)
+    kb_file_info = kb.list_kb_file_info()
+    # TODO 转化成现有接口的格式
 
-    resp = Response(code=200, msg="OK", data=kb.list_kb_file_info())
-    return jsonify(resp.model_dump())
-
-
-if __name__ == '__main__':
-    # 启动 Flask 应用，默认在 0.0.0.0:5000 上运行
-    app.run(port=5000, debug=True)
+    resp = Response(code=200, msg="OK", data=kb_file_info)
+    return resp

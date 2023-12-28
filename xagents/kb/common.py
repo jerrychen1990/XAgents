@@ -18,6 +18,8 @@ from typing import List, Optional, Tuple
 from xagents.config import *
 from langchain_core.documents import Document
 
+# 切片类型
+
 
 class ContentType(str, enum.Enum):
     TABLE = "TABLE"
@@ -25,12 +27,16 @@ class ContentType(str, enum.Enum):
     TEXT = "TEXT"
     PARSED_TABLE = "PARSED_TABLE"
 
+# 切片
+
 
 class Chunk(BaseModel):
     content: str = Field(description="chunk的内容")
     content_type: ContentType = Field(description="chunk类型", default=ContentType.TEXT)
     search_content: Optional[str] = Field(description="用来检索的内容", default=None)
     page_idx: int = Field(description="chunk在文档中的页码,从1开始")
+
+# 知识库中的切片
 
 
 class KBChunk(Chunk):
@@ -57,6 +63,8 @@ class KBChunk(Chunk):
         item = dict(content=content, search_content=document.page_content) if content else dict(content=document.page_content)
         item.update(document.metadata)
         return cls(**item)
+
+# 召回的切片
 
 
 class RecalledChunk(KBChunk):
@@ -115,6 +123,7 @@ class RecalledChunk(KBChunk):
         return backwords_str, forwards_str
 
 
+# 表格
 class Table:
     row_context: str
     col_context: str
@@ -134,6 +143,8 @@ class Table:
                 return f"在{self.col_context}下，"
             return ""
 
+# 一维表格
+
 
 class Dim1Table(Table, BaseModel):
     keys: List[str] = Field(description="key字段")
@@ -148,6 +159,8 @@ class Dim1Table(Table, BaseModel):
             if k and v:
                 descs.append(f"{self.get_context_info()}{k}是{v}")
         return descs
+
+# 二维表格
 
 
 class Dim2Table(Table, BaseModel):

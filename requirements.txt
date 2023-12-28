@@ -3,6 +3,5 @@ agit
 PyPDF2
 elasticsearch
 stqdm
-flask
-flasgger
 streamlit-aggrid
+fastapi
