@@ -74,9 +74,13 @@ def load_view():
                 chunk_text = chunk.to_detail_text(with_context=False)
                 st.markdown(f"[{idx+1}]  {chunk_text}")
                 with st.expander(f"展示上下文", expanded=False):
-                    forward_str, backward_str = chunk.get_contexts()
-                    st.markdown(f"上文:{forward_str}")
-                    st.markdown(f"下文:{backward_str}")
+                    plain_text = chunk.to_plain_text()
+                    st.markdown(plain_text)
+                    # forward_str, backward_str = chunk.get_contexts()
+                    
+                    
+                    # st.markdown(f"{forward_str}")
+                    # st.markdown(f"{backward_str}")
 
         st.session_state.messages.append(
             {"role": "user", "content": message})

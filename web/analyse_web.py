@@ -77,7 +77,7 @@ def show_item(idx):
         submitted = st.form_submit_button("更新")
         if submitted:
             item.update(question=question, question_label=question_label, gold_recall=gold_recall,
-                        recall=recall, gold_answer=gold_answer, answer=answer, answer_scor=answer_score, analyse_label=analyse_label, comment=comment)
+                        recall=recall, gold_answer=gold_answer, answer=answer, answer_score=answer_score, analyse_label=analyse_label, comment=comment)
             logger.info(item)
             on_next()
             st.rerun()

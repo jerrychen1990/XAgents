@@ -64,6 +64,13 @@ class KBChunk(Chunk):
         item.update(document.metadata)
         return cls(**item)
 
+    def __hash__(self) -> int:
+        return hash((self.kb_name, self.file_name, self.idx))
+    
+    def __eq__(self, __value: object) -> bool:
+        return hash(self) == hash(__value)
+
+
 # 召回的切片
 
 
@@ -96,7 +103,7 @@ class RecalledChunk(KBChunk):
 
         detail_text = f"[score={self.score:2.3f}][{main_len}字][扩展后{backword_len+main_len+forwards_len}字][类型{self.content_type.value}][第{self.page_idx}页][index:{self.idx}][相关文档:{self.file_name}][相关问题:{self.query}]\n\n **{self.content}**"
         if with_context:
-            backwords_str, forwards_str = self.get_contexts(self, max_len=main_len)
+            backwords_str, forwards_str = self.get_contexts(max_len=max_len)
             if backwords_str:
                 detail_text = backwords_str + "\n\n"+detail_text
             if forwards_str:

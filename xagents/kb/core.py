@@ -233,7 +233,7 @@ class KnwoledgeBase:
             tmp_config = copy.copy(self.vecstore_config)
             del tmp_config["vs_cls"]
             self.vecstore = self.vecstore_cls.from_documents(documents=documents, embedding=self.embd_model,
-                                                             **self.vecstore_config, distance_strategy=self.distance_strategy)
+                                                             **tmp_config, distance_strategy=self.distance_strategy)
         if self.vecstore.is_local():
             logger.info("storing vectors...")
             self.vecstore.save_local(self.vecstore_path)
@@ -302,9 +302,10 @@ class KnwoledgeBase:
             chunks = kb_file.chunks
             all_chunks.extend(chunks)
         logger.info(f"rebuilding vecstore with {len(all_chunks)} chunks")
-        logger.debug(f"sample chunk:{all_chunks[0]}")
-        self.vecstore = None
-        self._add_chunks(chunks)
+        if all_chunks:
+            logger.debug(f"sample chunk:{all_chunks[0]}")
+            self.vecstore = None
+            self._add_chunks(chunks)
 
     @log_cost_time(name="kb_search")
     def search(self, query: str, top_k: int = 3, score_threshold: float = None,
@@ -352,8 +353,13 @@ class KnwoledgeBase:
 
             tmp_recalled_chunks = [RecalledChunk.from_document(d, score=_get_score(s), query=query) for d, s in docs_with_score]
             recalled_chunks.extend(tmp_recalled_chunks)
-
+            
+            
+        # 去重，避免召回相同切片
+        
+        recalled_chunks = list(set(recalled_chunks))
         logger.info(f"{len(recalled_chunks)} origin chunks found")
+        
         recalled_chunks.sort(key=lambda x: x.score, reverse=True)
         recalled_chunks = recalled_chunks[:top_k]
         logger.info(f"get {len(recalled_chunks)} final chunks after sort")

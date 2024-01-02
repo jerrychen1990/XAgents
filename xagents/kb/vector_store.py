@@ -85,7 +85,7 @@ class XES(XVecStore, ElasticsearchStore):
 
 
 _vecstores = [XFAISS, XES]
-_name2vecstores = {e.__name__: e for e in _vecstores}
+_name2vecstores = {e.__name__:e for e in _vecstores}
 
 
 def list_vecstores():

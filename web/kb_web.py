@@ -7,7 +7,6 @@
 '''
 from st_aggrid import JsCode, AgGrid
 
-# from test import show
 import os
 from typing import Literal, Tuple, Dict
 import streamlit as st
@@ -15,7 +14,6 @@ import pandas as pd
 from web.util import get_default_idx
 from xagents.config import TEMP_DIR
 from xagents.kb.core import KnwoledgeBase
-from xagents.model.service import list_embd_models
 
 from xagents.kb.service import create_knowledge_base, get_knowledge_base, list_distance_strategy, list_knowledge_base_names, list_valid_exts, list_vecstores
 from xagents.kb.splitter import get_splitter
@@ -24,6 +22,7 @@ from st_aggrid.grid_options_builder import GridOptionsBuilder
 
 
 from web.config import *
+from xagents.model.service import list_embd_models
 
 
 def new_kb_page(kb_names, vs_names, embd_names, distance_strategys):
@@ -79,6 +78,7 @@ def new_kb_page(kb_names, vs_names, embd_names, distance_strategys):
             dict(model_cls="ZhipuEmbedding", batch_size=32, norm=True)
             embedding_config = dict(
                 model_cls=embd_model,
+                batch_size=32
             )
             create_knowledge_base(name=kb_name, desc=kb_desc, vecstore_config=vs_config,
                                   embedding_config=embedding_config, distance_strategy=distance_strategy)
@@ -139,6 +139,7 @@ def add_kb_file_page(kb: KnwoledgeBase):
                 kb.add_file(tmp_file_path, splitter=splitter)
                 msg = f"添加知识库文件{file.name} success!"
                 st.toast(msg)
+                st.rerun()
     st.divider()
 
 
@@ -234,6 +235,7 @@ def knowledge_base_info_page(kb: KnwoledgeBase):
                         disabled=False,
                         use_container_width=True
                     )
+
             chunk_path = selected_row.get("chunk_path")
             if chunk_path:
                 with open(chunk_path, "r") as f:
@@ -243,6 +245,12 @@ def knowledge_base_info_page(kb: KnwoledgeBase):
                         disabled=False,
                         use_container_width=True
                     )
+
+            if cols[2].button("删除选中文档", use_container_width=True):
+                file_name = selected_row.get("file_name")
+                st.spinner(text=f"删除{file_name}...")
+                kb.remove_file(file_name)
+
     st.divider()
 
 

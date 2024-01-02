@@ -32,25 +32,27 @@ def load_kb_options(st: DeltaGenerator, default_use_kb=True):
     if use_kb:
         kb_names = list_knowledge_base_names()
         kb_name = st.selectbox('选择知识库', kb_names, index=get_default_idx(kb_names, DEFAULT_KB))
-        kb = get_knowledge_base(kb_name)
-        filter_files = st.checkbox("筛选知识库文件", value=False)
-        if filter_files:
-            kb_files = kb.list_files()
-            kb_files = [e.file_name for e in kb_files]
-            file_names: List[str] = st.multiselect('选择知识库文件', kb_files)
-            chat_kwargs.update(file_names=file_names)
+        if kb_name:
+            kb = get_knowledge_base(kb_name)
 
-        top_k = st.number_input('召回数', value=DEFAULT_TOP_K, min_value=1, max_value=10, step=1)
-        do_expand = st.checkbox('上下文扩展', value=True)
-        kb_prompt_template = st.text_area('prompt模板', value=kb.prompt_template, height=150)
-        do_split_query = st.checkbox('查询语句分句', value=True)
-        chat_kwargs.update(top_k=top_k, do_expand=do_expand, do_split_query=do_split_query)
+            filter_files = st.checkbox("筛选知识库文件", value=False)
+            if filter_files:
+                kb_files = kb.list_files()
+                kb_files = [e.file_name for e in kb_files]
+                file_names: List[str] = st.multiselect('选择知识库文件', kb_files)
+                chat_kwargs.update(file_names=file_names)
 
-        if do_expand:
-            expand_len = st.number_input('扩展长度', value=DEFAULT_EXPAND_LEN, min_value=1, max_value=2000, step=1)
-            forward_rate = st.slider('向下扩展比例', value=DEFAULT_FORWARD_RATE, min_value=0.0, max_value=1., step=0.01)
+            top_k = st.number_input('召回数', value=DEFAULT_TOP_K, min_value=1, max_value=10, step=1)
+            do_expand = st.checkbox('上下文扩展', value=True)
+            kb_prompt_template = st.text_area('prompt模板', value=kb.prompt_template, height=150)
+            do_split_query = st.checkbox('查询语句分句', value=True)
+            chat_kwargs.update(top_k=top_k, do_expand=do_expand, do_split_query=do_split_query)
 
-            chat_kwargs.update(expand_len=expand_len, forward_rate=forward_rate)
+            if do_expand:
+                expand_len = st.number_input('扩展长度', value=DEFAULT_EXPAND_LEN, min_value=1, max_value=2000, step=1)
+                forward_rate = st.slider('向下扩展比例', value=DEFAULT_FORWARD_RATE, min_value=0.0, max_value=1., step=0.01)
+
+                chat_kwargs.update(expand_len=expand_len, forward_rate=forward_rate)
     return use_kb, kb_name, kb_prompt_template, chat_kwargs
 
 
