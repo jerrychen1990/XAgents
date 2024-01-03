@@ -72,8 +72,6 @@ class KBChunk(Chunk):
 
 
 # 召回的切片
-
-
 class RecalledChunk(KBChunk):
     query: str = Field(description="召回chunk的query")
     score: float = Field(description="召回chunk的分数")
@@ -81,7 +79,17 @@ class RecalledChunk(KBChunk):
     backwards: List[Chunk] = Field(description="chunk的上文扩展", default=[])
 
     @classmethod
-    def from_document(cls, document: Document, query: str, score: float):
+    def from_document(cls, document: Document, query: str, score: float)->"RecalledChunk":
+        """从langchain的Document构造过来
+
+        Args:
+            document (Document): langchain的Document
+            query (str): 相关问题
+            score (float): 召回得分
+
+        Returns:
+            _type_: RecalledChunk
+        """
         chunk = cls.__bases__[0].from_document(document)
         recalled_chunk = cls(**chunk.__dict__, query=query, score=score)
         return recalled_chunk

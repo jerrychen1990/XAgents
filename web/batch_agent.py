@@ -21,11 +21,14 @@ logger = get_log(__name__)
 
 def load_view():
 
-    surfix = ""
+    surfix = ""    
     # surfix = st.text_input(label="字段后缀", value="")
-    model, version, chat_kwargs = load_model_options(st.sidebar)
-    use_kb, kb_name, kb_prompt_template, _chat_kwargs = load_kb_options(st.sidebar, default_use_kb=True)
+    model_expander = st.sidebar.expander("模型配置", expanded=True)    
+    model, version, chat_kwargs = load_model_options(model_expander)
+    kb_expander = st.sidebar.expander("知识库配置", expanded=True)
+    use_kb, kb_name, kb_prompt_template, _chat_kwargs = load_kb_options(kb_expander, default_use_kb=True)
     chat_kwargs.update(**_chat_kwargs)
+
 
     work_num = st.sidebar.number_input(
         key="work_num", label="并发数", min_value=1, max_value=10, value=1, step=1)

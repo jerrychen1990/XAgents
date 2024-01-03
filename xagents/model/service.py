@@ -7,8 +7,8 @@
 '''
 import copy
 from typing import List
-from xagents.model.core import LLM, EMBD
-from xagents.model.zhipu import GLM, ZhipuEmbedding
+from xagents.model.core import LLM, EMBD, Reranker
+from xagents.model.zhipu import GLM, ZhipuEmbedding, ZhipuReranker
 
 
 _LLM_MODELS = [GLM]
@@ -17,6 +17,9 @@ _LLM_MODELS_DICT = {model.__name__: model for model in _LLM_MODELS}
 
 _EMBD_MODELS = [ZhipuEmbedding]
 _EMBD_MODELS_DICT = {model.__name__: model for model in _EMBD_MODELS}
+
+_RERANK_MODELS = [ZhipuReranker]
+_RERANK_MODELS_DICT = {model.__name__: model for model in _RERANK_MODELS}
 
 
 def list_llm_models() -> List[str]:
@@ -45,9 +48,24 @@ def get_embd_model(config: dict) -> EMBD:
     model_cls = _EMBD_MODELS_DICT[model_cls]
     return model_cls(**tmp_config)
 
+def get_rerank_model(config:dict)->Reranker:
+    if not config:
+        return None
+    tmp_config = copy.copy(config)
+    model_cls = tmp_config.pop("model_cls")
+    model_cls = _RERANK_MODELS_DICT[model_cls]
+    return model_cls(**tmp_config)
+    
+
 
 if __name__ == "__main__":
-    config = dict(model_cls="GLM", name="glm", version="chatglm_turbo")
-    model = get_llm_model(config)
-    resp = model.generate(prompt="你好", stream=False)
-    print(resp)
+    # config = dict(model_cls="GLM", name="glm", version="chatglm_turbo")
+    # model = get_llm_model(config)
+    # resp = model.generate(prompt="你好", stream=False)
+    # print(resp)
+    rerank_config = dict(model_cls="ZhipuReranker", url="http://36.103.177.140:8000/get_rel_score")
+    rerank_model = get_rerank_model(rerank_config)
+    score = rerank_model.cal_similarity("你好","你滚")
+    print(score)
+    
+    

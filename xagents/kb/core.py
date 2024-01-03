@@ -17,7 +17,7 @@ from xagents.kb.vector_store import XVecStore, get_vecstore_cls
 from xagents.kb.loader import get_loader_cls
 from xagents.kb.splitter import AbstractSplitter
 from xagents.kb.common import *
-from xagents.model.service import EMBD, get_embd_model
+from xagents.model.service import EMBD, get_embd_model, get_rerank_model
 from langchain_core.documents import Document
 from langchain.vectorstores.utils import DistanceStrategy
 
@@ -40,7 +40,7 @@ def get_config_path(kb_name) -> str:
 
 # 知识库文件类
 class KnwoledgeBaseFile:
-    def __init__(self, kb_name: str, origin_file_path: str):
+    def __init__(self, kb_name: str, origin_file_path: str, loader_kwargs=dict()):
         self.kb_name = kb_name
         self.file_name = os.path.basename(origin_file_path)
         self.stem, self.suffix = os.path.splitext(self.file_name)
@@ -48,6 +48,7 @@ class KnwoledgeBaseFile:
         self.chunks: List[KBChunk] = None
         self.origin_file_path = self._save_origin(origin_file_path)
         self.loader_cls = get_loader_cls(self.origin_file_path)
+        self.loader = self.loader_cls(**loader_kwargs)
         self.chunk_path = get_chunk_path(self.kb_name, self.file_name)
         self._load_chunks()
 
@@ -119,8 +120,7 @@ class KnwoledgeBaseFile:
         load并切片、存储
         """
         logger.info("start parsing")
-        loader = self.loader_cls()
-        origin_chunks: List[Chunk] = loader.load(self.origin_file_path)
+        origin_chunks: List[Chunk] = self.loader.load(self.origin_file_path)
         logger.info(f"load {len(origin_chunks)} origin_chunks")
         # logger.info(origin_chunks[:4])
         self.chunks = self._split(origin_chunks, splitter)
@@ -306,10 +306,35 @@ class KnwoledgeBase:
             logger.debug(f"sample chunk:{all_chunks[0]}")
             self.vecstore = None
             self._add_chunks(chunks)
+            
+            
+    def _rerank(self, recalled_chunks:List[RecalledChunk], rerank_config:dict)->List[RecalledChunk]:
+        """重排序
+        Args:
+            recalled_chunks (List[RecalledChunk]): 待排序的切片
+
+        Returns:
+            List[RecalledChunk]: 排序后的切片
+        """
+        logger.debug("reranking...")
+        rerank_model = get_rerank_model(rerank_config)
+        if rerank_model:
+            logger.info("reranking chunks with rerank model")
+            for chunk in recalled_chunks:
+                similarity = rerank_model.cal_similarity(chunk.query, chunk.content)
+                chunk.score = similarity
+                
+        
+        recalled_chunks.sort(key=lambda x:x.score, reverse=True)
+        return recalled_chunks
+        
+        
+        
+        
 
     @log_cost_time(name="kb_search")
     def search(self, query: str, top_k: int = 3, score_threshold: float = None,
-               do_split_query=False, file_names: List[str] = None,
+               do_split_query=False, file_names: List[str] = None, rerank_config:dict={},
                do_expand=False, expand_len: int = 500, forward_rate: float = 0.5) -> List[RecalledChunk]:
         """知识库检索
 
@@ -324,7 +349,7 @@ class KnwoledgeBase:
             forward_rate (float, optional): 上下文扩展时向下文扩展的比率（do_expand=True时生效）. Defaults to 0.5.
 
         Returns:
-            List[RecalledChunk]: _description_
+            List[RecalledChunk]: 相关的切片，按照score降序
         """
 
         if not self.vecstore:
@@ -332,14 +357,17 @@ class KnwoledgeBase:
             return []
 
         recalled_chunks = []
+        # 切分query
         querys = split_query(query, do_split_query)
         logger.debug(f"split origin query into {len(querys)} querys")
 
+        # 将原始score归一化到0-1，越大越接近
         def _get_score(s):
             if self.distance_strategy in [DistanceStrategy.EUCLIDEAN_DISTANCE]:
                 return 1.-s
             return s
 
+        # 过滤条件
         _filter = dict()
         if file_names:
             _filter = dict(file_name=file_names)
@@ -360,10 +388,10 @@ class KnwoledgeBase:
         recalled_chunks = list(set(recalled_chunks))
         logger.info(f"{len(recalled_chunks)} origin chunks found")
         
-        recalled_chunks.sort(key=lambda x: x.score, reverse=True)
-        recalled_chunks = recalled_chunks[:top_k]
+        recalled_chunks=self._rerank(recalled_chunks, rerank_config)[:top_k]
         logger.info(f"get {len(recalled_chunks)} final chunks after sort")
 
+        #上下文扩展
         if do_expand:
             logger.info("expanding recalled chunks")
             for chunk in recalled_chunks:

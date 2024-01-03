@@ -47,10 +47,11 @@ class XAgent(AbstractAgent):
     def chat(self, message: str, stream=True, do_remember=True,
              use_kb=False, top_k=3, score_threshold=None, temperature=0.01,
              do_split_query=False, fake_chat=False, file_names: List[str] = None,
-             do_expand=False, expand_len: int = 500, forward_rate: float = 0.5, **kwargs) -> AgentResp:
+             do_expand=False, expand_len: int = 500, forward_rate: float = 0.5, rerank_config:dict=dict(),
+             **kwargs) -> AgentResp:
         if use_kb:
             chunks = self.search_kb(query=message, top_k=top_k, score_threshold=score_threshold, do_split_query=do_split_query,
-                                    do_expand=do_expand, expand_len=expand_len, forward_rate=forward_rate, file_names=file_names)
+                                    do_expand=do_expand, expand_len=expand_len, forward_rate=forward_rate, file_names=file_names,rerank_config=rerank_config)
             context = "\n".join(f"{idx+1}." + c.to_plain_text() for idx, c in enumerate(chunks))
             # logger.debug(f"{context=}")
             prompt = self.kb_prompt_template.format(question=message, context=context)

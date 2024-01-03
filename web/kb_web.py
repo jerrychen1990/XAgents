@@ -101,10 +101,8 @@ def add_kb_file_page(kb: KnwoledgeBase):
                              list_valid_exts(),
                              accept_multiple_files=True,
                              )
-
-    # with st.sidebar:
     with st.expander(
-            "文件处理配置",
+            "文件切分配置",
             expanded=True,
     ):
         cols = st.columns(4)

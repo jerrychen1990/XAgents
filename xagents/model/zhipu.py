@@ -7,9 +7,9 @@
 '''
 
 from typing import List
-
+import requests
 import numpy as np
-from xagents.model.core import LLM, EMBD
+from xagents.model.core import LLM, EMBD, Reranker
 from agit.backend.zhipuai_bk import call_llm_api, call_embedding_api
 from snippets import batch_process
 from xagents.util import get_log
@@ -73,17 +73,40 @@ class ZhipuEmbedding(EMBD):
     def get_dim(cls) -> int:
         return 1024
 
+class ZhipuReranker(Reranker):
+    def __init__(self,  url:str, name="reranker", version="ZhipuReranker"):
+        self.url = url
+        super().__init__(name=name, version=version)
+
+    def cal_similarity(self, text1:str, text2:str):
+        logger.debug(f"rerank simi for {text1}, {text2}")
+        resp = requests.post(url=self.url, params=dict(text1=text1, text2=text2))
+        resp.raise_for_status()
+        return resp.json()["data"]["score"]
+        
+    
+
+
+
+
+
 
 if __name__ == "__main__":
     # llm_model = GLM(name="glm", version="chatglm_turbo")
     # resp = llm_model.generate("你好", stream=False)
     # print(resp)
 
-    embd_model = ZhipuEmbedding()
-    text = ["中国", "美国", "日本", "法国", "英国", "意大利", "西班牙", "德国", "俄罗斯"]
-    embds = embd_model.embed_documents(text)
-    print(len(embds))
-    print(embds[0][:4])
-    embd = embd_model.embed_query("你好")
-    print(len(embd))
-    print(embd[:4])
+    # embd_model = ZhipuEmbedding()
+    # text = ["中国", "美国", "日本", "法国", "英国", "意大利", "西班牙", "德国", "俄罗斯"]
+    # embds = embd_model.embed_documents(text)
+    # print(len(embds))
+    # print(embds[0][:4])
+    # embd = embd_model.embed_query("你好")
+    # print(len(embd))
+    # print(embd[:4])
+    
+    
+    reranker = ZhipuReranker(url="http://36.103.177.140:8000/get_rel_score", name="zhipu_ranker", version="bge-reranker-base")
+    sim = reranker.cal_similarity("私募基金","公募基金")
+    print(sim)
+    

@@ -31,3 +31,15 @@ class EMBD(Embeddings):
     @classmethod
     def get_dim(cls) -> int:
         raise NotImplementedError
+
+class Reranker:
+    def __init__(self, name: str, version: str):
+        self.name = name
+        self.version = version
+
+    @abstractmethod
+    def cal_similarity(self, text1:str, text2:str):
+        raise NotImplementedError
+
+    
+
