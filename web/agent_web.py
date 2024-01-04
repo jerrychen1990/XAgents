@@ -8,7 +8,7 @@
 
 
 import streamlit as st
-from web.util import load_model_options, load_kb_options
+from web.util import load_model_options, load_kb_options, load_tool_options
 from xagents.agent.core import AgentResp
 from xagents.agent.xagent import XAgent
 
@@ -21,6 +21,8 @@ logger = get_log(__name__)
 def load_view():
     model, version, chat_kwargs = load_model_options(st.sidebar)
     use_kb, kb_name, kb_prompt_template, _chat_kwargs = load_kb_options(st.sidebar, default_use_kb=True)
+    tools = load_tool_options(st.sidebar)
+    
     fake_chat = st.sidebar.checkbox(label="fake_chat", value=False)
 
     chat_kwargs.update(**_chat_kwargs, fake_chat=fake_chat)
@@ -30,6 +32,7 @@ def load_view():
         if True:
             agent = XAgent(name="tmp_agent",
                            memory_config=dict(size=10),
+                           tools=tools,
                            llm_config=dict(model_cls=model, name=model, version=version),
                            kb_prompt_template=kb_prompt_template,
                            kb_name=kb_name)
@@ -61,7 +64,7 @@ def load_view():
 
             full_response = ""
         resp: AgentResp = agent.chat(message=message, use_kb=use_kb, do_remember=False, **chat_kwargs)
-        for token in resp.message:
+        for token in resp.content:
             full_response += token
             message_placeholder.markdown(full_response + "▌")
         message_placeholder.markdown(full_response)

@@ -6,12 +6,12 @@
 @Contact :   jerrychen1990@gmail.com
 '''
 
-import os
 from xagents.config import TEMP_DIR
 from xagents.kb.service import get_knowledge_base, list_knowledge_base_names
 from web.config import *
 from xagents.model.service import list_llm_models, list_llm_versions
 from snippets import *
+from xagents.tool.service import get_tool, list_tools
 from xagents.util import get_log
 from streamlit.delta_generator import DeltaGenerator
 logger = get_log(__name__)
@@ -63,7 +63,7 @@ def load_kb_options(st: DeltaGenerator, default_use_kb=True):
     return use_kb, kb_name, kb_prompt_template, chat_kwargs
 
 
-def load_model_options(st):
+def load_model_options(st:DeltaGenerator):
     models = list_llm_models()
 
     model = st.selectbox('选择模型类型', models, index=get_default_idx(models, DEFAULT_MODEL))
@@ -73,6 +73,16 @@ def load_model_options(st):
 
     chat_kwargs = dict(temperature=temperature)
     return model, version, chat_kwargs
+
+def load_tool_options(st:DeltaGenerator):
+    use_tool = st.checkbox('使用工具', value=False)
+    tools = []
+    if use_tool:
+        all_tools =  list_tools()
+        default = get_tool(DEFAULT_TOOL)
+        
+        tools = st.multiselect(label="工具包", options=all_tools, default= default, format_func=lambda x: x.name)
+    return tools    
 
 
 def show_save_button(st, file_name, records, keep_name=True, **kwargs):

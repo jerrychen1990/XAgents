@@ -101,32 +101,37 @@ def add_kb_file_page(kb: KnwoledgeBase):
                              list_valid_exts(),
                              accept_multiple_files=True,
                              )
-    with st.expander(
-            "文件切分配置",
-            expanded=True,
-    ):
-        cols = st.columns(4)
-        # 分词器
-        # splitters = list_spliters()
-        # splitter = cols[0].selectbox(label="分段器", options=splitters, index=get_default_idx(splitters, DEFAULT_SPLITTER))
-        splitter = DEFAULT_SPLITTER
-        # 切分词
-        cutter = cols[0].text_input(label="切分词,正则表达式", value=DEFAULT_CUTTER)
-        min_len = cols[1].number_input(label="最小词长", min_value=1, max_value=500, value=DEFAULT_MIN_LEN)
-        max_len = cols[2].number_input(label="最大词长", min_value=1, max_value=500, value=DEFAULT_MAX_LEN)
+    is_splitter = st.checkbox("是否使用分词器", value= True)
+    if is_splitter:
+        with st.expander(
+                "文件切分配置",
+                expanded=True,
+        ):
+            cols = st.columns(4)
+            # 分词器
+            # splitters = list_spliters()
+            # splitter = cols[0].selectbox(label="分段器", options=splitters, index=get_default_idx(splitters, DEFAULT_SPLITTER))
+            splitter_cls = DEFAULT_SPLITTER
+            # 切分词
+            cutter = cols[0].text_input(label="切分词,正则表达式", value=DEFAULT_CUTTER)
+            min_len = cols[1].number_input(label="最小词长", min_value=1, max_value=500, value=DEFAULT_MIN_LEN)
+            max_len = cols[2].number_input(label="最大词长", min_value=1, max_value=500, value=DEFAULT_MAX_LEN)
 
-        # 是否处理表格
-        cols[3].write("")
-        cols[3].write("")
-        parse_table = cols[3].checkbox("是否处理表格", DEFAULT_PARSE_TABLE)
+            # 是否处理表格
+            cols[3].write("")
+            cols[3].write("")
+            parse_table = cols[3].checkbox("是否处理表格", DEFAULT_PARSE_TABLE)
 
     if st.button(
             "添加文件到知识库",
             # use_container_width=True,
             disabled=len(files) == 0,
     ):
-        splitter_config = dict(spliter_cls=splitter, min_len=min_len, max_len=max_len, parse_table=parse_table, splitter=cutter)
-        splitter = get_splitter(splitter_config)
+        if is_splitter:
+            splitter_config = dict(spliter_cls=splitter_cls, min_len=min_len, max_len=max_len, parse_table=parse_table, splitter=cutter)
+            splitter = get_splitter(splitter_config)
+        else:
+            splitter=None
         with st.spinner("添加文件中，勿刷新或关闭页面。"):
             for file in stqdm(files):
                 st.info(f"adding {file.name}...")

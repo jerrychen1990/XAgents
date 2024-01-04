@@ -15,7 +15,7 @@ from snippets import read2list
 class StructedLoader(AbastractLoader):
 
     def __init__(self, content_key="content",
-                 search_content_key=None,
+                 search_content_key="search_content",
                  page_idx_key="page", content_type_key="chunk_type") -> None:
         self.content_key = content_key
         self.page_idx_key = page_idx_key

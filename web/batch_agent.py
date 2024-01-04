@@ -9,7 +9,7 @@ import datetime
 import time
 import streamlit as st
 from snippets import batch_process, jdumps
-from web.util import load_kb_options, load_model_options, show_save_button, show_upload_table
+from web.util import load_kb_options, load_model_options, load_tool_options, show_save_button, show_upload_table
 from xagents.config import *
 from xagents.agent.core import AgentResp
 from xagents.agent.xagent import XAgent
@@ -21,14 +21,16 @@ logger = get_log(__name__)
 
 def load_view():
 
-    surfix = ""    
+    surfix = ""
     # surfix = st.text_input(label="字段后缀", value="")
-    model_expander = st.sidebar.expander("模型配置", expanded=True)    
+    model_expander = st.sidebar.expander("模型配置", expanded=True)
     model, version, chat_kwargs = load_model_options(model_expander)
     kb_expander = st.sidebar.expander("知识库配置", expanded=True)
     use_kb, kb_name, kb_prompt_template, _chat_kwargs = load_kb_options(kb_expander, default_use_kb=True)
-    chat_kwargs.update(**_chat_kwargs)
+    tool_expander = st.sidebar.expander("工具配置", expanded=True)
+    tools = load_tool_options(tool_expander)
 
+    chat_kwargs.update(**_chat_kwargs)
 
     work_num = st.sidebar.number_input(
         key="work_num", label="并发数", min_value=1, max_value=10, value=1, step=1)
@@ -43,13 +45,13 @@ def load_view():
 
         agent = XAgent(name="tmp_batch_agent", llm_config=llm_config,
                        memory_config=memory_config, kb_name=_kb_name,
-                       kb_prompt_template=kb_prompt_template)
+                       tools=tools, kb_prompt_template=kb_prompt_template)
         resp: AgentResp = agent.chat(message=prompt, stream=False, do_remember=False, use_kb=use_kb, **chat_kwargs)
 
-        item[f"answer_{surfix}" if surfix else "answer"] = resp.message
+        item[f"answer_{surfix}" if surfix else "answer"] = resp.content
         item[f"recall_{surfix}" if surfix else "recall"] = jdumps(resp.references)
 
-        rt = dict(question=item['question'], answer=resp.message)
+        rt = dict(question=item['question'], answer=resp.content)
         if "gold_answer" in item:
             rt.update(gold_answer=item["gold_answer"])
         return rt

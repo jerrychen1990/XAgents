@@ -65,7 +65,7 @@ class KnwoledgeBaseFile:
         return dst_path
 
     # 加载/切割文件
-    def _split(self, origin_chunks: List[Chunk], splitter: AbstractSplitter) -> List[KBChunk]:
+    def _split(self, origin_chunks: List[Chunk], splitter: AbstractSplitter) -> List[Chunk]:
         """
         切分文件
         """
@@ -73,8 +73,6 @@ class KnwoledgeBaseFile:
         for origin_chunk in origin_chunks:
             chunks = splitter.split_chunk(origin_chunk)
             for chunk in chunks:
-                # print(chunk.model_dump(mode="json"))
-                chunk = KBChunk(**chunk.model_dump(mode="json"), idx=idx, kb_name=self.kb_name, file_name=self.file_name)
                 rs_chunks.append(chunk)
                 idx += 1
         return rs_chunks
@@ -122,9 +120,15 @@ class KnwoledgeBaseFile:
         logger.info("start parsing")
         origin_chunks: List[Chunk] = self.loader.load(self.origin_file_path)
         logger.info(f"load {len(origin_chunks)} origin_chunks")
-        # logger.info(origin_chunks[:4])
-        self.chunks = self._split(origin_chunks, splitter)
-        logger.info(f"splitted to {len(self.chunks)} kb_chunks")
+        logger.debug(origin_chunks[:4])
+        if splitter:
+            origin_chunks = self._split(origin_chunks, splitter)
+            logger.info(f"splitted to {len(origin_chunks)} chunks")
+        
+            
+        self.chunks = [KBChunk(**chunk.model_dump(mode="json"), idx=idx,
+                               kb_name=self.kb_name, file_name=self.file_name) for idx, chunk in enumerate(origin_chunks)]
+
         self._save_chunks()
         return self.chunks
 
@@ -227,6 +231,7 @@ class KnwoledgeBase:
         """
         logger.info(f"adding {len(chunks)} chunks to vecstore")
         documents: List[Document] = [chunk.to_document() for chunk in chunks]
+        logger.debug(f"document:{documents[0]}")
         if self.vecstore:
             self.vecstore.add_documents(documents, embedding=self.embd_model)
         else:
@@ -306,9 +311,8 @@ class KnwoledgeBase:
             logger.debug(f"sample chunk:{all_chunks[0]}")
             self.vecstore = None
             self._add_chunks(chunks)
-            
-            
-    def _rerank(self, recalled_chunks:List[RecalledChunk], rerank_config:dict)->List[RecalledChunk]:
+
+    def _rerank(self, recalled_chunks: List[RecalledChunk], rerank_config: dict) -> List[RecalledChunk]:
         """重排序
         Args:
             recalled_chunks (List[RecalledChunk]): 待排序的切片
@@ -323,18 +327,13 @@ class KnwoledgeBase:
             for chunk in recalled_chunks:
                 similarity = rerank_model.cal_similarity(chunk.query, chunk.content)
                 chunk.score = similarity
-                
-        
-        recalled_chunks.sort(key=lambda x:x.score, reverse=True)
+
+        recalled_chunks.sort(key=lambda x: x.score, reverse=True)
         return recalled_chunks
-        
-        
-        
-        
 
     @log_cost_time(name="kb_search")
     def search(self, query: str, top_k: int = 3, score_threshold: float = None,
-               do_split_query=False, file_names: List[str] = None, rerank_config:dict={},
+               do_split_query=False, file_names: List[str] = None, rerank_config: dict = {},
                do_expand=False, expand_len: int = 500, forward_rate: float = 0.5) -> List[RecalledChunk]:
         """知识库检索
 
@@ -378,20 +377,20 @@ class KnwoledgeBase:
             docs_with_score = self.vecstore.similarity_search_with_score(query, k=top_k, score_threshold=score_threshold, filter=_filter)
             logger.debug(f"{len(docs_with_score)} origin chunks found")
             logger.debug(f"{query}'s related docs{[d.page_content[:30] for d,s in docs_with_score]}")
+            # logger.debug(docs_with_score[0])
 
             tmp_recalled_chunks = [RecalledChunk.from_document(d, score=_get_score(s), query=query) for d, s in docs_with_score]
             recalled_chunks.extend(tmp_recalled_chunks)
-            
-            
+
         # 去重，避免召回相同切片
-        
+
         recalled_chunks = list(set(recalled_chunks))
         logger.info(f"{len(recalled_chunks)} origin chunks found")
-        
-        recalled_chunks=self._rerank(recalled_chunks, rerank_config)[:top_k]
+
+        recalled_chunks = self._rerank(recalled_chunks, rerank_config)[:top_k]
         logger.info(f"get {len(recalled_chunks)} final chunks after sort")
 
-        #上下文扩展
+        # 上下文扩展
         if do_expand:
             logger.info("expanding recalled chunks")
             for chunk in recalled_chunks:

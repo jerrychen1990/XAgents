@@ -13,11 +13,13 @@ from abc import abstractmethod
 from pydantic import BaseModel, Field
 
 from xagents.kb.common import RecalledChunk
+from xagents.tool.core import ToolCall
 
 
 class AgentResp(BaseModel):
-    message: Union[str, Generator] = Field(description="返回的消息")
+    content: Union[str, Generator] = Field(description="返回的消息")
     references: Optional[List[RecalledChunk]] = Field(description="召回的片段")
+    tool_call:Optional[ToolCall] = Field(description="工具调用")
 
 
 class AbstractAgent:

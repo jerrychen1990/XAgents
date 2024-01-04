@@ -93,9 +93,16 @@ class RecalledChunk(KBChunk):
         chunk = cls.__bases__[0].from_document(document)
         recalled_chunk = cls(**chunk.__dict__, query=query, score=score)
         return recalled_chunk
+    
+    def get_content(self):
+        if self.search_content:
+            return self.search_content  + "\n" + self.content
+        
+        return self.content
+        
 
     def to_plain_text(self):
-        rs = self.content
+        rs = self.get_content()
         if self.backwards:
             backwords_str = "\n".join([chunk.content for chunk in self.backwards])
             rs = backwords_str + "\n" + rs
@@ -107,9 +114,10 @@ class RecalledChunk(KBChunk):
     def to_detail_text(self, with_context=False, max_len=None) -> str:
         backword_len = sum(len(c.content) for c in self.backwards)
         forwards_len = sum(len(c.content) for c in self.forwards)
-        main_len = len(self.content)
+        content = self.get_content()
+        main_len = len(content)
 
-        detail_text = f"[score={self.score:2.3f}][{main_len}字][扩展后{backword_len+main_len+forwards_len}字][类型{self.content_type.value}][第{self.page_idx}页][index:{self.idx}][相关文档:{self.file_name}][相关问题:{self.query}]\n\n **{self.content}**"
+        detail_text = f"[score={self.score:2.3f}][{main_len}字][扩展后{backword_len+main_len+forwards_len}字][类型{self.content_type.value}][第{self.page_idx}页][index:{self.idx}][相关文档:{self.file_name}][相关问题:{self.query}]\n\n **{content}**"
         if with_context:
             backwords_str, forwards_str = self.get_contexts(max_len=max_len)
             if backwords_str:
