@@ -71,9 +71,7 @@ class GLM(LLM):
 
     def generate(self, prompt, history=[], system=None, tools: List[BaseTool] = [], stream=True, temperature=0.01, **kwargs)->Tuple[ToolCall, Union[str, Generator]]:
         # logger.info(f"{self.__class__} generating resp with {prompt=}, {history=}")
-        glm_tools = self._convert_tool_desc(tools)
-        logger.debug(glm_tools)
-        
+        glm_tools = self._convert_tool_desc(tools)        
         tool_calls, resp = call_llm_api(prompt=prompt, history=history, model=self.version, temperature=temperature, tools=glm_tools,
                             do_search=False, system=system, stream=stream, api_key=self.api_key, logger=logger, **kwargs)
         if tool_calls:

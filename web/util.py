@@ -50,6 +50,7 @@ def load_kb_options(st: DeltaGenerator, default_use_kb=True):
 
 
             top_k = st.number_input('召回数', value=DEFAULT_TOP_K, min_value=1, max_value=10, step=1)
+            score_threshold = st.number_input('阈值', value=DEFAULT_THRESHOLD, min_value=0.0, max_value=1.0)
             do_expand = st.checkbox('上下文扩展', value=True)
             kb_prompt_template = st.text_area('prompt模板', value=kb.prompt_template, height=150)
             do_split_query = st.checkbox('查询语句分句', value=True)
@@ -59,7 +60,7 @@ def load_kb_options(st: DeltaGenerator, default_use_kb=True):
                 expand_len = st.number_input('扩展长度', value=DEFAULT_EXPAND_LEN, min_value=1, max_value=2000, step=1)
                 forward_rate = st.slider('向下扩展比例', value=DEFAULT_FORWARD_RATE, min_value=0.0, max_value=1., step=0.01)
 
-                chat_kwargs.update(expand_len=expand_len, forward_rate=forward_rate)
+                chat_kwargs.update(expand_len=expand_len, forward_rate=forward_rate, score_threshold=score_threshold)
     return use_kb, kb_name, kb_prompt_template, chat_kwargs
 
 
