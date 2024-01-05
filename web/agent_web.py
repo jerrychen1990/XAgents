@@ -61,6 +61,8 @@ def load_view():
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             reference_placeholder = st.empty()
+            tool_call_placeholder = st.empty()
+
 
             full_response = ""
         resp: AgentResp = agent.chat(message=message, use_kb=use_kb, do_remember=False, **chat_kwargs)
@@ -68,22 +70,26 @@ def load_view():
             full_response += token
             message_placeholder.markdown(full_response + "▌")
         message_placeholder.markdown(full_response)
+        
+        logger.debug(f"{resp=}")
+        
+        
         if resp.references:
             logger.debug("adding chunks info")
-            st.markdown("参考信息")
+            reference_placeholder.markdown("参考信息")
 
-            # with reference_placeholder.expander("参考信息", expanded=False):
+            # 展示参考信息
             for idx, chunk in enumerate(resp.references):
                 chunk_text = chunk.to_detail_text(with_context=False)
-                st.markdown(f"[{idx+1}]  {chunk_text}")
-                with st.expander(f"展示上下文", expanded=False):
+                reference_placeholder.markdown(f"[{idx+1}]  {chunk_text}")
+                with reference_placeholder.expander(f"展示上下文", expanded=False):
                     plain_text = chunk.to_plain_text()
-                    st.markdown(plain_text)
-                    # forward_str, backward_str = chunk.get_contexts()
+                    reference_placeholder.markdown(plain_text)
                     
-                    
-                    # st.markdown(f"{forward_str}")
-                    # st.markdown(f"{backward_str}")
+        # 展示工具使用
+        if resp.tool_call:
+            tool_call_placeholder.markdown(resp.tool_call.to_markdown())
+            
 
         st.session_state.messages.append(
             {"role": "user", "content": message})

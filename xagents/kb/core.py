@@ -144,13 +144,27 @@ class KnwoledgeBaseFile:
 
 class KnwoledgeBase:
 
-    def __init__(self, name: str,
+    def __init__(self, 
+                 name: str,
                  embedding_config: dict,
                  description=None,
-                 vecstore_config: str = dict(vs_cls="FAISS"),
+                 vecstore_config: dict = dict(vs_cls="XFAISS"),
                  distance_strategy: DistanceStrategy = DistanceStrategy.MAX_INNER_PRODUCT,
                  prompt_template: str = DEFAULT_KB_PROMPT_TEMPLATE
                  ) -> None:
+        """知识库
+        Args:
+            name (str): 知识库名称
+            embedding_config (dict): embedding模型配置，示例：dict(model_cls="ZhipuEmbedding", batch_size=32, norm=True)
+                                     model_cls:embedding模型类型,现有支持ZhipuEmbedding
+                                     batch_size:embedding模型调用时的并发度
+                                     norm:embedding结果是否要归一化
+            description (str, optional): 知识库说明，设为None时，description等同于name
+            vecstore_config (dict, optional): 向量存储配置. 默认值dict(vs_cls="XFAISS").
+                                     vs_cls: 向量存储类型,现有支持XFAISS/XES
+            distance_strategy (DistanceStrategy, optional): 距离度量类型. Defaults to DistanceStrategy.MAX_INNER_PRODUCT.
+            prompt_template (str, optional): 调用该知识库的时候，默认使用的prompt模板. Defaults to DEFAULT_KB_PROMPT_TEMPLATE.
+        """
         self.name = name
         self.description = description if description else f"{self.name}知识库"
         self._build_dirs()

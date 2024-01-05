@@ -11,7 +11,7 @@ from xagents.kb.service import get_knowledge_base, list_knowledge_base_names
 from web.config import *
 from xagents.model.service import list_llm_models, list_llm_versions
 from snippets import *
-from xagents.tool.service import get_tool, list_tools
+from xagents.tool.service import list_tools
 from xagents.util import get_log
 from streamlit.delta_generator import DeltaGenerator
 logger = get_log(__name__)
@@ -80,9 +80,9 @@ def load_tool_options(st:DeltaGenerator):
     tools = []
     if use_tool:
         all_tools =  list_tools()
-        default = get_tool(DEFAULT_TOOL)
+        # default = get_tool(DEFAULT_TOOL)
         
-        tools = st.multiselect(label="工具包", options=all_tools, default= default, format_func=lambda x: x.name)
+        tools = st.multiselect(label="工具包", options=all_tools, default= None, format_func=lambda x: x.name)
     return tools    
 
 

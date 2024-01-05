@@ -6,7 +6,7 @@
 @Author  :   ChenHao
 @Contact :   jerrychen1990@gmail.com
 '''
-from web import kb_web, agent_web, batch_agent, analyse_web, similarity
+from web import kb_web, agent_web, batch_agent, analyse_web, similarity, tool_web
 from streamlit_option_menu import option_menu
 import streamlit as st
 st.set_page_config(layout="wide", page_title='XAgent')
@@ -23,6 +23,10 @@ pages = {
     "知识库管理": {
         "icon": "hdd-stack",
         "page": kb_web,
+    },
+    "工具管理": {
+        "icon": "hdd-stack",
+        "page": tool_web,
     },
     "问题分析": {
         "icon": "hdd-stack",
@@ -41,7 +45,6 @@ selected_page = option_menu(
     "",
     orientation="horizontal",
     options=options,
-    icons=icons,
     menu_icon="chat-quote",
     default_index=default_index,
 )

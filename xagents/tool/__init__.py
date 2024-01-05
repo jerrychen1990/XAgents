@@ -6,7 +6,7 @@
 @Contact :   jerrychen1990@gmail.com
 '''
 
-from xagents.tool.calulator import calculator
+from xagents.tool.common_tool import calculator
 from xagents.tool.core import BaseTool, ToolCall
 
 

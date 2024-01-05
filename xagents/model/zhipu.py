@@ -6,7 +6,7 @@
 @Contact :   jerrychen1990@gmail.com
 '''
 
-from typing import Any, Generator, List, Tuple, Union
+from typing import Generator, List, Tuple, Union
 import requests
 import numpy as np
 from xagents.model.core import LLM, EMBD, Reranker
@@ -27,8 +27,8 @@ class GLM(LLM):
     @classmethod
     def list_versions(cls):
         return [
-            "chatglm3_32b_alpha",
             "chatglm3_beta",
+            "chatglm3_32b_alpha",
             "chatglm3_130b_int8",
             "chatglm3_130b",
             "chatglm_turbo",
@@ -61,18 +61,18 @@ class GLM(LLM):
         return tool_call
         
         
-    def observe(self, tool_call:ToolCall, observe:Any, tools: List[BaseTool] = [], history=[], **kwargs):
+    def observe(self, tool_call:ToolCall,  tools: List[BaseTool] = [], history=[], **kwargs):
         glm_tools = self._convert_tool_desc(tools)
-        message =dict(role="tool", content=str(observe), tool_call_id=tool_call.extra_info["tool_call_id"])
-        tool_calls, resp = call_llm_api(prompt=message,history=history, model=self.version, api_key=self.api_key,
+        message =dict(role="tool", content=str(tool_call.resp), tool_call_id=tool_call.extra_info["tool_call_id"])
+        _, resp = call_llm_api(prompt=message,history=history, model=self.version, api_key=self.api_key,
                                         tools = glm_tools,
                                         logger=logger, **kwargs)
         return resp
 
-    def generate(self, prompt, history=[], system=None, tools: List[BaseTool] = [], stream=True, temperature=0.01, **kwargs)->Tuple[ToolCall, Union[str, Generator]]:
+    def generate(self, prompt, history=[], system=None, tools: List[BaseTool] = [], stream=True, **kwargs)->Tuple[ToolCall, Union[str, Generator]]:
         # logger.info(f"{self.__class__} generating resp with {prompt=}, {history=}")
         glm_tools = self._convert_tool_desc(tools)        
-        tool_calls, resp = call_llm_api(prompt=prompt, history=history, model=self.version, temperature=temperature, tools=glm_tools,
+        tool_calls, resp = call_llm_api(prompt=prompt, history=history, model=self.version, tools=glm_tools,
                             do_search=False, system=system, stream=stream, api_key=self.api_key, logger=logger, **kwargs)
         if tool_calls:
             logger.debug(f"tool_calls:{tool_calls}")

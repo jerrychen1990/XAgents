@@ -8,7 +8,7 @@
 
 from typing import Any, List
 
-from xagents.tool.calulator import calculator
+from xagents.tool.common_tool import calculator
 from xagents.tool.core import BaseTool, ToolCall
 
 
@@ -19,6 +19,7 @@ _TOOL_MAP = {e.name:e for e in _ALL_TOOLS}
 def invoke_tool_call(tool_call:ToolCall)->Any:
     tool = get_tool(tool_call.name)
     resp = tool.execute(**tool_call.parameters)
+    tool_call.resp = resp
     return resp
     
 

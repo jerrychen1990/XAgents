@@ -75,10 +75,10 @@ class XAgent(AbstractAgent):
                                                             temperature=temperature, stream=stream, **kwargs)
             # 调用tool
             if tool_call:
-                logger.debug("calling tool")
-                tool_resp = self.use_tool(tool_call)
+                logger.debug(f"calling tool:{tool_call.name}")
+                self.use_tool(tool_call)
                 history = self.memory.to_llm_history() + [dict(role="user", content=prompt)]
-                model_resp = self.llm_model.observe(tool_call, tool_resp, tools=self.tools,history=history,
+                model_resp = self.llm_model.observe(tool_call, tools=self.tools,history=history,
                                                     stream=stream, temperature=temperature, **kwargs)            
 
         def _remember_callback(resp_str):
