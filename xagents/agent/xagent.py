@@ -70,6 +70,7 @@ class XAgent(AbstractAgent):
         if fake_chat:
             fake_resp = "这是MOCK的回答信息,如果需要真实回答,请设置fake_chat=False"
             model_resp = (e for e in fake_resp) if stream else fake_resp
+            tool_call = None
         else:
             tool_call, model_resp = self.llm_model.generate(prompt=prompt, history=self.memory.to_llm_history(), tools=self.tools,
                                                             temperature=temperature, stream=stream, **kwargs)

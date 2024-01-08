@@ -60,7 +60,6 @@ def load_view():
             st.markdown(message)
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
-            reference_placeholder = st.empty()
             tool_call_placeholder = st.empty()
 
 
@@ -71,11 +70,11 @@ def load_view():
             message_placeholder.markdown(full_response + "▌")
         message_placeholder.markdown(full_response)
         
-        logger.debug(f"{resp=}")
+        # logger.debug(f"{resp=}")
         
         
         if resp.references:
-            logger.debug("adding chunks info")
+            # logger.debug("adding chunks info")
             st.markdown("参考信息")
 
             # 展示参考信息
@@ -84,7 +83,7 @@ def load_view():
                 st.markdown(f"[{idx+1}]  {chunk_text}")
                 with st.expander(f"展示上下文", expanded=False):
                     plain_text = chunk.to_plain_text()
-                    st.markdown(plain_text)
+                    st.text(plain_text)
                     
         # 展示工具使用
         if resp.tool_call:
