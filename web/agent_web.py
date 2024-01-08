@@ -76,15 +76,15 @@ def load_view():
         
         if resp.references:
             logger.debug("adding chunks info")
-            reference_placeholder.markdown("参考信息")
+            st.markdown("参考信息")
 
             # 展示参考信息
             for idx, chunk in enumerate(resp.references):
                 chunk_text = chunk.to_detail_text(with_context=False)
-                reference_placeholder.markdown(f"[{idx+1}]  {chunk_text}")
-                with reference_placeholder.expander(f"展示上下文", expanded=False):
+                st.markdown(f"[{idx+1}]  {chunk_text}")
+                with st.expander(f"展示上下文", expanded=False):
                     plain_text = chunk.to_plain_text()
-                    reference_placeholder.markdown(plain_text)
+                    st.markdown(plain_text)
                     
         # 展示工具使用
         if resp.tool_call:

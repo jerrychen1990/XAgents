@@ -5,3 +5,4 @@ elasticsearch
 stqdm
 streamlit-aggrid
 fastapi
+streamlit_option_menu
